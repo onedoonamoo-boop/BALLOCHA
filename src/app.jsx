@@ -86,7 +86,7 @@ const inp = {
 export default function App() {
   const [tab, setTab]               = useState("dues");
   const [slideDir, setSlideDir]     = useState(0); // -1: 왼쪽, 1: 오른쪽
-  const TABS = ["dues", "schedule", "members"];
+  const TABS = ["dues", "schedule", "members", "gallery"];
   const touchStart = { x: 0, y: 0 };
   const [screen, setScreen]         = useState("main");
   const [payments, setPayments]     = useState(initPayments);
@@ -95,6 +95,11 @@ export default function App() {
   const [schedules, setSchedules]   = useState(INIT_SCHEDULES);
   const [memberTypes, setMemberTypes] = useState(initMemberTypes);
   const [showAll, setShowAll]       = useState(false);
+  const [photos, setPhotos]         = useState([]);
+  const [showAddPhoto, setShowAddPhoto] = useState(false);
+  const [newPhoto, setNewPhoto]     = useState({ url:"", title:"", date:"", location:"" });
+  const [photoIdx, setPhotoIdx]     = useState(0);
+  const photoTouchStart             = { x: 0 };
   const [showAdd, setShowAdd]       = useState(false);
   const [selMonth, setSelMonth]     = useState(new Date().getMonth());
   const [newExp, setNewExp]         = useState({ date: "", desc: "", amount: "" });
@@ -155,6 +160,7 @@ export default function App() {
         if (d.incomes)     setIncomes(d.incomes);
         if (d.schedules)   setSchedules(d.schedules);
         if (d.memberTypes) setMemberTypes(d.memberTypes);
+        if (d.photos)      setPhotos(d.photos);
       }
       setLoading(false);
     });
@@ -223,6 +229,21 @@ export default function App() {
     }
   };
 
+  const addPhoto = () => {
+    if (!newPhoto.url || !newPhoto.title) return;
+    const updated = [{ ...newPhoto, id: Date.now() }, ...photos];
+    setPhotos(updated); save({ photos: updated });
+    setNewPhoto({ url:"", title:"", date:"", location:"" });
+    setShowAddPhoto(false);
+    setPhotoIdx(0);
+  };
+
+  const deletePhoto = (id) => {
+    const updated = photos.filter(p => p.id !== id);
+    setPhotos(updated); save({ photos: updated });
+    setPhotoIdx(0);
+  };
+
   const handleAdminLogin = () => {
     if (pwInput === ADMIN_PW) { setIsAdmin(true); setShowAdminModal(false); setPwInput(""); setPwError(false); }
     else setPwError(true);
@@ -275,7 +296,7 @@ export default function App() {
               </div>
             </div>
             <div style={{ display:"flex", gap:4, background:"#141820", borderRadius:16, padding:5 }}>
-              {[{key:"dues",icon:"💰",label:"회비"},{key:"schedule",icon:"📅",label:"일정"},{key:"members",icon:"👥",label:"멤버"}].map(t => (
+              {[{key:"dues",icon:"💰",label:"회비"},{key:"schedule",icon:"📅",label:"일정"},{key:"members",icon:"👥",label:"멤버"},{key:"gallery",icon:"📸",label:"사진첩"}].map(t => (
                 <button key={t.key} onClick={() => setTab(t.key)} style={{ flex:1, background:tab===t.key?"#facc15":"none", border:"none", borderRadius:12, padding:"10px 0", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
                   <span style={{ fontSize:20 }}>{t.icon}</span>
                   <span style={{ fontSize:13, fontWeight:700, color:tab===t.key?"#0b0e14":"#4b5563" }}>{t.label}</span>
@@ -445,6 +466,91 @@ export default function App() {
                 <button onClick={() => setShowAll(p=>!p)} style={{ width:"100%", background:"none", border:"1px solid #1e2535", borderRadius:14, padding:"13px", color:"#6b7280", fontSize:14, fontWeight:600, cursor:"pointer", marginTop:4 }}>
                   {showAll?"▲ 접기":"▼ +13명 더보기"}
                 </button>
+              </div>
+            )}
+
+            {/* ── 사진첩 탭 ── */}
+            {tab==="gallery" && (
+              <div className={slideDir <= 0 ? "fade-right" : "fade-left"} style={{ height:"calc(100vh - 220px)", display:"flex", flexDirection:"column" }}>
+                {photos.length === 0 ? (
+                  <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12 }}>
+                    <div style={{ fontSize:48 }}>📷</div>
+                    <div style={{ fontSize:15, color:"#4b5563" }}>아직 사진이 없어요</div>
+                    {isAdmin && <button onClick={() => setShowAddPhoto(true)} style={{ marginTop:8, background:"rgba(250,204,21,0.1)", border:"1px dashed rgba(250,204,21,0.3)", borderRadius:14, padding:"12px 24px", color:"#facc15", fontSize:14, fontWeight:600, cursor:"pointer" }}>+ 첫 사진 추가</button>}
+                  </div>
+                ) : (
+                  <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
+                    {/* 사진 카드 */}
+                    <div
+                      style={{ height:"100%", display:"flex", flexDirection:"column" }}
+                      onTouchStart={e => { photoTouchStart.x = e.touches[0].clientX; }}
+                      onTouchEnd={e => {
+                        const dx = e.changedTouches[0].clientX - photoTouchStart.x;
+                        if (Math.abs(dx) < 40) return;
+                        if (dx < 0 && photoIdx < photos.length - 1) setPhotoIdx(p => p + 1);
+                        if (dx > 0 && photoIdx > 0) setPhotoIdx(p => p - 1);
+                      }}
+                    >
+                      {/* 이미지 */}
+                      <div style={{ flex:1, position:"relative", overflow:"hidden", borderRadius:20, marginBottom:16 }}>
+                        <img
+                          src={photos[photoIdx].url}
+                          alt={photos[photoIdx].title}
+                          style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:20 }}
+                          onError={e => { e.target.style.display="none"; }}
+                        />
+                        {/* 인덱스 */}
+                        <div style={{ position:"absolute", top:12, right:12, background:"rgba(0,0,0,0.5)", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff" }}>
+                          {photoIdx + 1} / {photos.length}
+                        </div>
+                        {/* 삭제 버튼 */}
+                        {isAdmin && (
+                          <button onClick={() => deletePhoto(photos[photoIdx].id)} style={{ position:"absolute", top:12, left:12, background:"rgba(239,68,68,0.7)", border:"none", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff", cursor:"pointer" }}>삭제</button>
+                        )}
+                        {/* 좌우 화살표 힌트 */}
+                        {photoIdx > 0 && <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:24, color:"rgba(255,255,255,0.4)" }}>‹</div>}
+                        {photoIdx < photos.length-1 && <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", fontSize:24, color:"rgba(255,255,255,0.4)" }}>›</div>}
+                      </div>
+
+                      {/* 사진 정보 */}
+                      <div style={{ background:"#141820", borderRadius:16, padding:"16px" }}>
+                        <div style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>{photos[photoIdx].title}</div>
+                        <div style={{ display:"flex", gap:14 }}>
+                          {photos[photoIdx].date && <div style={{ fontSize:13, color:"#6b7280" }}>📅 {photos[photoIdx].date}</div>}
+                          {photos[photoIdx].location && <div style={{ fontSize:13, color:"#6b7280" }}>📍 {photos[photoIdx].location}</div>}
+                        </div>
+                      </div>
+
+                      {/* 점 인디케이터 */}
+                      <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:12 }}>
+                        {photos.map((_, i) => (
+                          <div key={i} onClick={() => setPhotoIdx(i)} style={{ width: i===photoIdx?20:6, height:6, borderRadius:3, background: i===photoIdx?"#facc15":"#1e2535", transition:"all 0.2s", cursor:"pointer" }}/>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 추가 버튼 */}
+                {isAdmin && photos.length > 0 && (
+                  <button onClick={() => setShowAddPhoto(true)} style={{ marginTop:12, width:"100%", background:"rgba(250,204,21,0.08)", border:"1px dashed rgba(250,204,21,0.3)", borderRadius:14, padding:"12px", color:"#facc15", fontSize:14, fontWeight:600, cursor:"pointer" }}>+ 사진 추가</button>
+                )}
+
+                {/* 사진 추가 모달 */}
+                {showAddPhoto && (
+                  <div onClick={() => setShowAddPhoto(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"flex-end", zIndex:200 }}>
+                    <div onClick={e => e.stopPropagation()} style={{ width:"100%", background:"#141820", borderRadius:"24px 24px 0 0", padding:"28px 20px 40px" }}>
+                      <div style={{ fontSize:18, fontWeight:700, marginBottom:18 }}>📸 사진 추가</div>
+                      <input placeholder="이미지 URL (Imgur 등)" value={newPhoto.url} onChange={e => setNewPhoto(p=>({...p,url:e.target.value}))} style={{...inp, marginBottom:10}}/>
+                      <input placeholder="모임 제목 (예: 봄 정기전)" value={newPhoto.title} onChange={e => setNewPhoto(p=>({...p,title:e.target.value}))} style={{...inp, marginBottom:10}}/>
+                      <div style={{ display:"flex", gap:10, marginBottom:20 }}>
+                        <input type="date" value={newPhoto.date} onChange={e => setNewPhoto(p=>({...p,date:e.target.value}))} style={{...inp}}/>
+                        <input placeholder="장소" value={newPhoto.location} onChange={e => setNewPhoto(p=>({...p,location:e.target.value}))} style={{...inp}}/>
+                      </div>
+                      <button onClick={addPhoto} style={{ width:"100%", background:"#facc15", border:"none", borderRadius:14, padding:"16px", color:"#0b0e14", fontSize:16, fontWeight:700, cursor:"pointer" }}>추가하기</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
