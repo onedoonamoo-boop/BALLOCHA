@@ -18,6 +18,9 @@ const DUES_PER_MONTH = 10000;
 const INITIAL_BALANCE = 1086802;
 const ADMIN_PW = "2351";
 
+// 2025년 추가 미납금 (원)
+const EXTRA_UNPAID = { 3: 120000, 15: 100000, 16: 120000 }; // 구본영, 최덕성, 최재원
+
 const ALL_MEMBERS = [
   { id: 1,  name: "유준호", phone: "010-5116-2351", role: "총무", payType: "auto"   },
   { id: 2,  name: "차민환", phone: "010-2619-7932", role: "회장", payType: "manual" },
@@ -105,6 +108,7 @@ export default function App() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
+  const [copyMsg, setCopyMsg] = useState(false);
 
   // PWA 설치 감지
   useEffect(() => {
@@ -303,7 +307,7 @@ export default function App() {
                   <div style={{ fontSize:13, color:"#6b7280", marginBottom:8 }}>현재 잔액</div>
                   <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <div style={{ fontSize:38, fontWeight:900, color:"#facc15", letterSpacing:"-1px", lineHeight:1 }}>{balance.toLocaleString()}<span style={{ fontSize:18, marginLeft:3 }}>원</span></div>
-                    <div style={{ fontSize:11, color:"#6b7280", background:"#1e2535", borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:4 }}><span>🏦</span><span>110-399-676673 신한</span></div>
+                    <div onClick={() => { navigator.clipboard.writeText("110295247627"); setCopyMsg(true); setTimeout(()=>setCopyMsg(false),1500); }} style={{ fontSize:11, color:copyMsg?"#4ade80":"#6b7280", background:"#1e2535", borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:4, cursor:"pointer", transition:"color 0.2s" }}><span>🏦</span><span>{copyMsg ? "복사됨 ✓" : "110-295-247-627 신한"}</span></div>
                   </div>
                   <div style={{ marginTop:16, display:"flex", gap:24 }}>
                     <div>
@@ -405,6 +409,9 @@ export default function App() {
                 {isAdmin && <div style={{ fontSize:12, color:"#6b7280", marginBottom:10 }}>💡 이체 유형 탭하면 변경돼요</div>}
                 {ALL_MEMBERS.slice(0, showAll?18:5).map((m) => {
                   const mType = memberTypes[m.id] || m.payType;
+                  const unpaid26 = MONTHS.filter((_, i) => !payments[m.id]?.[i]).length;
+                  const extra = EXTRA_UNPAID[m.id] || 0;
+                  const totalDebt = unpaid26 * DUES_PER_MONTH + extra;
                   return (
                     <div key={m.id} style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"14px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
                       <div style={{ width:44, height:44, borderRadius:"50%", background:"linear-gradient(135deg,#1e2535,#2a3245)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:900, color:"#facc15", flexShrink:0 }}>{m.name[0]}</div>
@@ -413,7 +420,14 @@ export default function App() {
                           <span style={{ fontSize:16, fontWeight:700 }}>{m.name}</span>
                           {m.role && <span style={{ fontSize:11, background:"rgba(250,204,21,0.1)", color:"#facc15", borderRadius:5, padding:"2px 7px", fontWeight:700 }}>{m.role}</span>}
                         </div>
-                        <div style={{ fontSize:13, color:"#4b5563", marginTop:3 }}>{m.phone}</div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:3 }}>
+                          <div style={{ fontSize:13, color:"#4b5563" }}>{m.phone}</div>
+                          {totalDebt > 0 && (
+                            <div style={{ fontSize:11, fontWeight:700, color:"#ef4444", background:"rgba(239,68,68,0.1)", borderRadius:6, padding:"2px 7px" }}>
+                              미납 {totalDebt.toLocaleString()}원
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div
                         onClick={() => cycleMemberType(m.id)}
