@@ -391,9 +391,7 @@ export default function App() {
                   </div>
                 ))}
                 {schedules.length === 0 && <div style={{ fontSize:14, color:"#4b5563", textAlign:"center", padding:"24px 0" }}>등록된 일정이 없어요</div>}
-                {isAdmin && (
-                  <button onClick={() => setShowAdd(true)} style={{ width:"100%", background:"rgba(250,204,21,0.08)", border:"1px dashed rgba(250,204,21,0.3)", borderRadius:16, padding:"14px", color:"#facc15", fontSize:15, fontWeight:600, cursor:"pointer", marginTop:8 }}>+ 일정 추가</button>
-                )}
+                <button onClick={() => setShowAdd(true)} style={{ width:"100%", background:"rgba(250,204,21,0.08)", border:"1px dashed rgba(250,204,21,0.3)", borderRadius:16, padding:"14px", color:"#facc15", fontSize:15, fontWeight:600, cursor:"pointer", marginTop:8 }}>+ 일정 추가</button>
 
                 {/* 일정 추가 모달 */}
                 {showAdd && (
