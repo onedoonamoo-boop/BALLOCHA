@@ -310,6 +310,7 @@ export default function App() {
             style={{ flex:1, padding:"20px 20px 110px" }}
             onTouchStart={e => { touchStart.x = e.touches[0].clientX; touchStart.y = e.touches[0].clientY; }}
             onTouchEnd={e => {
+              if (tab === "gallery") return;
               const dx = e.changedTouches[0].clientX - touchStart.x;
               const dy = e.changedTouches[0].clientY - touchStart.y;
               if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
@@ -492,10 +493,11 @@ export default function App() {
                       }}
                     >
                       {/* 이미지 */}
-                      <div style={{ flex:1, position:"relative", borderRadius:20, overflow:"hidden", minHeight:300,
-                        backgroundImage:`url(${photos[photoIdx].url})`,
-                        backgroundSize:"cover", backgroundPosition:"center"
-                      }}>
+                      <div style={{ position:"relative", borderRadius:20, overflow:"hidden", background:"#141820", width:"100%" }}>
+                        <img
+                          src={photos[photoIdx].url}
+                          style={{ width:"100%", height:"auto", display:"block", borderRadius:20 }}
+                        />
                         {/* 인덱스 */}
                         <div style={{ position:"absolute", top:12, right:12, background:"rgba(0,0,0,0.5)", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff" }}>
                           {photoIdx + 1} / {photos.length}
@@ -505,8 +507,8 @@ export default function App() {
                           <button onClick={() => deletePhoto(photos[photoIdx].id)} style={{ position:"absolute", top:12, left:12, background:"rgba(239,68,68,0.7)", border:"none", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff", cursor:"pointer" }}>삭제</button>
                         )}
                         {/* 좌우 화살표 힌트 */}
-                        {photoIdx > 0 && <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:28, color:"rgba(255,255,255,0.6)" }}>‹</div>}
-                        {photoIdx < photos.length-1 && <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", fontSize:28, color:"rgba(255,255,255,0.6)" }}>›</div>}
+                        {photoIdx > 0 && <div style={{ position:"absolute", left:16, top:"50%", transform:"translateY(-50%)", fontSize:32, color:"rgba(255,255,255,0.7)", textShadow:"0 0 8px rgba(0,0,0,0.8)" }}>‹</div>}
+                        {photoIdx < photos.length-1 && <div style={{ position:"absolute", right:16, top:"50%", transform:"translateY(-50%)", fontSize:32, color:"rgba(255,255,255,0.7)", textShadow:"0 0 8px rgba(0,0,0,0.8)" }}>›</div>}
                       </div>
 
 
