@@ -134,7 +134,16 @@ export default function App() {
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) {
         const d = snap.data();
-        if (d.payments)    setPayments(d.payments);
+        if (d.payments) {
+          // 자동이체 멤버는 현재 월까지 항상 납부 완료 처리
+          const cur = new Date().getMonth();
+          const merged = { ...d.payments };
+          ALL_MEMBERS.filter(m => m.payType === "auto").forEach(m => {
+            merged[m.id] = { ...merged[m.id] };
+            for (let i = 0; i <= cur; i++) merged[m.id][i] = true;
+          });
+          setPayments(merged);
+        }
         if (d.expenses)    setExpenses(d.expenses);
         if (d.incomes)     setIncomes(d.incomes);
         if (d.schedules)   setSchedules(d.schedules);
