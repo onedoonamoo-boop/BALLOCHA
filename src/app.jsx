@@ -262,7 +262,7 @@ export default function App() {
                 {/* 잔액 카드 */}
                 <div onClick={goToDetail} style={{ background:"linear-gradient(135deg,#1a1f2e,#141820)", border:"1px solid rgba(250,204,21,0.2)", borderRadius:20, padding:"24px", marginBottom:16, cursor:"pointer", position:"relative" }}>
                   <div style={{ position:"absolute", top:16, right:16, fontSize:12, color:"rgba(250,204,21,0.5)", fontWeight:600 }}>상세보기 →</div>
-                  <div style={{ fontSize:13, color:"#6b7280", marginBottom:8 }}>현재 잔액</div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}><div style={{ fontSize:13, color:"#6b7280" }}>현재 잔액</div><div style={{ fontSize:11, color:"#4b5563", background:"#1e2535", borderRadius:8, padding:"4px 10px", display:"flex", alignItems:"center", gap:5 }}><span>🏦</span><span>110-399-676673 신한</span></div></div>
                   <div style={{ fontSize:38, fontWeight:900, color:"#facc15", letterSpacing:"-1px", lineHeight:1 }}>{balance.toLocaleString()}<span style={{ fontSize:18, marginLeft:3 }}>원</span></div>
                   <div style={{ marginTop:16, display:"flex", gap:24 }}>
                     <div>
