@@ -97,7 +97,7 @@ export default function App() {
   const [showAll, setShowAll]       = useState(false);
   const [photos, setPhotos]         = useState([]);
   const [showAddPhoto, setShowAddPhoto] = useState(false);
-  const [newPhoto, setNewPhoto]     = useState({ url:"", title:"", date:"", location:"" });
+  const [newPhoto, setNewPhoto]     = useState({ url:"" });
   const [photoIdx, setPhotoIdx]     = useState(0);
   const photoTouchStart             = { x: 0 };
   const [showAdd, setShowAdd]       = useState(false);
@@ -233,9 +233,9 @@ export default function App() {
     if (!newPhoto.url || !newPhoto.title) return;
     const updated = [{ ...newPhoto, id: Date.now() }, ...photos];
     setPhotos(updated); save({ photos: updated });
-    setNewPhoto({ url:"", title:"", date:"", location:"" });
-    setShowAddPhoto(false);
+    setNewPhoto({ url:"", title:"" });
     setPhotoIdx(0);
+    setShowAddPhoto(false);
   };
 
   const deletePhoto = (id) => {
@@ -512,14 +512,7 @@ export default function App() {
                         {photoIdx < photos.length-1 && <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", fontSize:24, color:"rgba(255,255,255,0.4)" }}>›</div>}
                       </div>
 
-                      {/* 사진 정보 */}
-                      <div style={{ background:"#141820", borderRadius:16, padding:"16px" }}>
-                        <div style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>{photos[photoIdx].title}</div>
-                        <div style={{ display:"flex", gap:14 }}>
-                          {photos[photoIdx].date && <div style={{ fontSize:13, color:"#6b7280" }}>📅 {photos[photoIdx].date}</div>}
-                          {photos[photoIdx].location && <div style={{ fontSize:13, color:"#6b7280" }}>📍 {photos[photoIdx].location}</div>}
-                        </div>
-                      </div>
+
 
                       {/* 점 인디케이터 */}
                       <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:12 }}>
@@ -541,12 +534,7 @@ export default function App() {
                   <div onClick={() => setShowAddPhoto(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"flex-end", zIndex:200 }}>
                     <div onClick={e => e.stopPropagation()} style={{ width:"100%", background:"#141820", borderRadius:"24px 24px 0 0", padding:"28px 20px 40px" }}>
                       <div style={{ fontSize:18, fontWeight:700, marginBottom:18 }}>📸 사진 추가</div>
-                      <input placeholder="이미지 URL (Imgur 등)" value={newPhoto.url} onChange={e => setNewPhoto(p=>({...p,url:e.target.value}))} style={{...inp, marginBottom:10}}/>
-                      <input placeholder="모임 제목 (예: 봄 정기전)" value={newPhoto.title} onChange={e => setNewPhoto(p=>({...p,title:e.target.value}))} style={{...inp, marginBottom:10}}/>
-                      <div style={{ display:"flex", gap:10, marginBottom:20 }}>
-                        <input type="date" value={newPhoto.date} onChange={e => setNewPhoto(p=>({...p,date:e.target.value}))} style={{...inp}}/>
-                        <input placeholder="장소" value={newPhoto.location} onChange={e => setNewPhoto(p=>({...p,location:e.target.value}))} style={{...inp}}/>
-                      </div>
+                      <input placeholder="이미지 URL (Imgur 등)" value={newPhoto.url} onChange={e => setNewPhoto(p=>({...p,url:e.target.value}))} style={{...inp, marginBottom:20}}/>
                       <button onClick={addPhoto} style={{ width:"100%", background:"#facc15", border:"none", borderRadius:14, padding:"16px", color:"#0b0e14", fontSize:16, fontWeight:700, cursor:"pointer" }}>추가하기</button>
                     </div>
                   </div>
