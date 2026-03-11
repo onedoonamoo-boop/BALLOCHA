@@ -82,6 +82,8 @@ const inp = {
 
 export default function App() {
   const [tab, setTab]               = useState("dues");
+  const TABS = ["dues", "schedule", "members"];
+  const touchStart = { x: 0, y: 0 };
   const [screen, setScreen]         = useState("main");
   const [payments, setPayments]     = useState(initPayments);
   const [expenses, setExpenses]     = useState([]);
@@ -274,7 +276,18 @@ export default function App() {
           </div>
 
           {/* 컨텐츠 */}
-          <div style={{ flex:1, padding:"20px 20px 110px" }}>
+          <div
+            style={{ flex:1, padding:"20px 20px 110px" }}
+            onTouchStart={e => { touchStart.x = e.touches[0].clientX; touchStart.y = e.touches[0].clientY; }}
+            onTouchEnd={e => {
+              const dx = e.changedTouches[0].clientX - touchStart.x;
+              const dy = e.changedTouches[0].clientY - touchStart.y;
+              if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+              const cur = TABS.indexOf(tab);
+              if (dx < 0) setTab(TABS[(cur + 1) % TABS.length]);
+              else setTab(TABS[(cur - 1 + TABS.length) % TABS.length]);
+            }}
+          >
 
             {/* ── 회비 탭 ── */}
             {tab==="dues" && (
