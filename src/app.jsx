@@ -492,13 +492,10 @@ export default function App() {
                       }}
                     >
                       {/* 이미지 */}
-                      <div style={{ flex:1, position:"relative", overflow:"hidden", borderRadius:20, marginBottom:16 }}>
-                        <img
-                          src={photos[photoIdx].url}
-                          alt={photos[photoIdx].title}
-                          style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:20 }}
-                          onError={e => { e.target.style.display="none"; }}
-                        />
+                      <div style={{ flex:1, position:"relative", borderRadius:20, overflow:"hidden", minHeight:300,
+                        backgroundImage:`url(${photos[photoIdx].url})`,
+                        backgroundSize:"cover", backgroundPosition:"center"
+                      }}>
                         {/* 인덱스 */}
                         <div style={{ position:"absolute", top:12, right:12, background:"rgba(0,0,0,0.5)", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff" }}>
                           {photoIdx + 1} / {photos.length}
@@ -508,8 +505,8 @@ export default function App() {
                           <button onClick={() => deletePhoto(photos[photoIdx].id)} style={{ position:"absolute", top:12, left:12, background:"rgba(239,68,68,0.7)", border:"none", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff", cursor:"pointer" }}>삭제</button>
                         )}
                         {/* 좌우 화살표 힌트 */}
-                        {photoIdx > 0 && <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:24, color:"rgba(255,255,255,0.4)" }}>‹</div>}
-                        {photoIdx < photos.length-1 && <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", fontSize:24, color:"rgba(255,255,255,0.4)" }}>›</div>}
+                        {photoIdx > 0 && <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:28, color:"rgba(255,255,255,0.6)" }}>‹</div>}
+                        {photoIdx < photos.length-1 && <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", fontSize:28, color:"rgba(255,255,255,0.6)" }}>›</div>}
                       </div>
 
 
