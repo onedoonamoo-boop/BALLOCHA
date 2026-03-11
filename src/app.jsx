@@ -150,7 +150,7 @@ export default function App() {
 
   if (loading) return (
     <div style={{ minHeight:"100vh", background:"#0b0e14", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
-      <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+     
       <div style={{ fontFamily:"'Black Han Sans',sans-serif", fontSize:32, color:"#facc15" }}>FC발로차</div>
       <div style={{ fontSize:14, color:"#4b5563" }}>데이터 불러오는 중...</div>
     </div>
@@ -158,7 +158,7 @@ export default function App() {
 
   return (
     <div style={{ minHeight:"100vh", background:"#0b0e14", color:"#e5e7eb", fontFamily:"'Noto Sans KR',sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+  
       <style>{`
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         @keyframes slideIn { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
