@@ -193,8 +193,18 @@ export default function App() {
   const cycleMemberType = (mid) => {
     if (!isAdmin) return;
     const next = PAY_TYPE_CYCLE[memberTypes[mid]] || "auto";
-    const updated = { ...memberTypes, [mid]: next };
-    setMemberTypes(updated); save({ memberTypes: updated });
+    const updatedTypes = { ...memberTypes, [mid]: next };
+    setMemberTypes(updatedTypes);
+
+    // 완납으로 변경 시 1~12월 전부 납부 처리
+    if (next === "done") {
+      const updatedPayments = { ...payments, [mid]: {} };
+      MONTHS.forEach((_, i) => { updatedPayments[mid][i] = true; });
+      setPayments(updatedPayments);
+      save({ memberTypes: updatedTypes, payments: updatedPayments });
+    } else {
+      save({ memberTypes: updatedTypes });
+    }
   };
 
   const handleAdminLogin = () => {
