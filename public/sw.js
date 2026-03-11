@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fc-ballocha-v1';
+const CACHE_NAME = 'fc-ballocha-v2';
 const urlsToCache = ['/'];
 
 self.addEventListener('install', event => {
