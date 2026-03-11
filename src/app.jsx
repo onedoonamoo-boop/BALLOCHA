@@ -51,6 +51,7 @@ const INIT_SCHEDULES = [
   { id: 2, month: 4, day: 11, title: "한석현 결혼식",    sub: "", tag: "💍 경사", tagColor: "#facc15" },
 ];
 
+// 자동이체 멤버 기본 납부 초기화
 function initPayments() {
   const p = {};
   const cur = new Date().getMonth();
@@ -61,9 +62,17 @@ function initPayments() {
   return p;
 }
 
-function catColor(cat) {
-  return { "경조사": "#7c3aed", "소모임": "#0891b2", "축구": "#059669", "기타": "#6b7280" }[cat] || "#6b7280";
+// 멤버 납부유형 초기화 (auto/manual/done)
+function initMemberTypes() {
+  const t = {};
+  ALL_MEMBERS.forEach(m => { t[m.id] = m.payType; });
+  return t;
 }
+
+const PAY_TYPE_CYCLE = { auto: "manual", manual: "done", done: "auto" };
+const PAY_TYPE_LABEL = { auto: "자동이체", manual: "수동이체", done: "완납" };
+const PAY_TYPE_COLOR = { auto: "#4ade80", manual: "#6b7280", done: "#ef4444" };
+const PAY_TYPE_BG    = { auto: "rgba(74,222,128,0.1)", manual: "#1e2535", done: "rgba(239,68,68,0.1)" };
 
 const inp = {
   background: "#0b0e14", border: "1px solid #1e2535",
@@ -72,30 +81,63 @@ const inp = {
 };
 
 export default function App() {
-  const [tab, setTab]             = useState("dues");
-  const [screen, setScreen]       = useState("main");
-  const [payments, setPayments]   = useState(initPayments);
-  const [expenses, setExpenses]   = useState([]);
-  const [schedules, setSchedules] = useState(INIT_SCHEDULES);
-  const [showAll, setShowAll]     = useState(false);
-  const [showAdd, setShowAdd]     = useState(false);
-  const [selMonth, setSelMonth]   = useState(new Date().getMonth());
-  const [newExp, setNewExp]       = useState({ date: "", category: "경조사", desc: "", amount: "" });
-  const [newEv, setNewEv]         = useState({ month: "", day: "", title: "", sub: "", tag: "⚽ 축구", tagColor: "#4ade80" });
-  const [loading, setLoading]     = useState(true);
-  const [isAdmin, setIsAdmin]     = useState(false);
+  const [tab, setTab]               = useState("dues");
+  const [screen, setScreen]         = useState("main");
+  const [payments, setPayments]     = useState(initPayments);
+  const [expenses, setExpenses]     = useState([]);
+  const [incomes, setIncomes]       = useState([]);
+  const [schedules, setSchedules]   = useState(INIT_SCHEDULES);
+  const [memberTypes, setMemberTypes] = useState(initMemberTypes);
+  const [showAll, setShowAll]       = useState(false);
+  const [showAdd, setShowAdd]       = useState(false);
+  const [selMonth, setSelMonth]     = useState(new Date().getMonth());
+  const [newExp, setNewExp]         = useState({ date: "", desc: "", amount: "" });
+  const [newInc, setNewInc]         = useState({ date: "", desc: "", amount: "" });
+  const [newEv, setNewEv]           = useState({ month: "", day: "", title: "", sub: "", tag: "⚽ 축구", tagColor: "#4ade80" });
+  const [loading, setLoading]       = useState(true);
+  const [isAdmin, setIsAdmin]       = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
-  const [pwInput, setPwInput]     = useState("");
-  const [pwError, setPwError]     = useState(false);
+  const [pwInput, setPwInput]       = useState("");
+  const [pwError, setPwError]       = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
 
+  // PWA 설치 감지
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    });
+    if (window.matchMedia('(display-mode: standalone)').matches) setIsInstalled(true);
+  }, []);
+
+  // 기기 뒤로가기 버튼 처리
+  useEffect(() => {
+    const handlePop = () => { setScreen("main"); };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  const goToDetail = () => {
+    window.history.pushState({ screen: "dues_detail" }, "");
+    setScreen("dues_detail");
+  };
+
+  const goToMain = () => {
+    window.history.back();
+  };
+
+  // Firebase 실시간 동기화
   useEffect(() => {
     const ref = doc(db, "fc-ballocha", "data");
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) {
         const d = snap.data();
-        if (d.payments)  setPayments(d.payments);
-        if (d.expenses)  setExpenses(d.expenses);
-        if (d.schedules) setSchedules(d.schedules);
+        if (d.payments)    setPayments(d.payments);
+        if (d.expenses)    setExpenses(d.expenses);
+        if (d.incomes)     setIncomes(d.incomes);
+        if (d.schedules)   setSchedules(d.schedules);
+        if (d.memberTypes) setMemberTypes(d.memberTypes);
       }
       setLoading(false);
     });
@@ -114,12 +156,24 @@ export default function App() {
     if (!newExp.date || !newExp.desc || !newExp.amount) return;
     const updated = [...expenses, { ...newExp, id: Date.now(), amount: parseInt(newExp.amount) }];
     setExpenses(updated); save({ expenses: updated });
-    setNewExp({ date: "", category: "경조사", desc: "", amount: "" });
+    setNewExp({ date: "", desc: "", amount: "" });
   };
 
   const deleteExpense = (id) => {
     const updated = expenses.filter(e => e.id !== id);
     setExpenses(updated); save({ expenses: updated });
+  };
+
+  const addIncome = () => {
+    if (!newInc.date || !newInc.desc || !newInc.amount) return;
+    const updated = [...incomes, { ...newInc, id: Date.now(), amount: parseInt(newInc.amount) }];
+    setIncomes(updated); save({ incomes: updated });
+    setNewInc({ date: "", desc: "", amount: "" });
+  };
+
+  const deleteIncome = (id) => {
+    const updated = incomes.filter(e => e.id !== id);
+    setIncomes(updated); save({ incomes: updated });
   };
 
   const addSchedule = () => {
@@ -135,22 +189,29 @@ export default function App() {
     setSchedules(updated); save({ schedules: updated });
   };
 
+  const cycleMemberType = (mid) => {
+    if (!isAdmin) return;
+    const next = PAY_TYPE_CYCLE[memberTypes[mid]] || "auto";
+    const updated = { ...memberTypes, [mid]: next };
+    setMemberTypes(updated); save({ memberTypes: updated });
+  };
+
   const handleAdminLogin = () => {
     if (pwInput === ADMIN_PW) { setIsAdmin(true); setShowAdminModal(false); setPwInput(""); setPwError(false); }
     else setPwError(true);
   };
 
   const unpaidCount = (mi) => ALL_MEMBERS.filter(m => !payments[m.id]?.[mi]).length;
-  const autoMembers = ALL_MEMBERS.filter(m => m.payType === "auto");
+  const paidNames   = ALL_MEMBERS.filter(m => payments[m.id]?.[new Date().getMonth()]).map(m => m.name);
   const unpaidNames = ALL_MEMBERS.filter(m => !payments[m.id]?.[new Date().getMonth()]).map(m => m.name);
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+  const totalExpenses  = expenses.reduce((s, e) => s + e.amount, 0);
+  const totalIncomes   = incomes.reduce((s, e) => s + e.amount, 0);
   const totalCollected = ALL_MEMBERS.reduce((sum, m) => sum + MONTHS.filter((_, i) => payments[m.id]?.[i]).length * DUES_PER_MONTH, 0);
-  const balance = INITIAL_BALANCE + totalCollected - totalExpenses;
+  const balance = INITIAL_BALANCE + totalCollected + totalIncomes - totalExpenses;
   const recentExpenses = [...expenses].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
 
   if (loading) return (
     <div style={{ minHeight:"100vh", background:"#0b0e14", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
-     
       <div style={{ fontFamily:"'Black Han Sans',sans-serif", fontSize:32, color:"#facc15" }}>FC발로차</div>
       <div style={{ fontSize:14, color:"#4b5563" }}>데이터 불러오는 중...</div>
     </div>
@@ -158,7 +219,6 @@ export default function App() {
 
   return (
     <div style={{ minHeight:"100vh", background:"#0b0e14", color:"#e5e7eb", fontFamily:"'Noto Sans KR',sans-serif" }}>
-  
       <style>{`
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         @keyframes slideIn { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
@@ -194,42 +254,51 @@ export default function App() {
           </div>
 
           {/* 컨텐츠 */}
-          <div style={{ flex:1, padding:"20px 20px 100px" }}>
+          <div style={{ flex:1, padding:"20px 20px 110px" }}>
 
+            {/* ── 회비 탭 ── */}
             {tab==="dues" && (
               <div className="fade">
-                <div onClick={() => setScreen("dues_detail")} style={{ background:"linear-gradient(135deg,#1a1f2e,#141820)", border:"1px solid rgba(250,204,21,0.2)", borderRadius:20, padding:"24px", marginBottom:16, cursor:"pointer", position:"relative" }}>
+                {/* 잔액 카드 */}
+                <div onClick={goToDetail} style={{ background:"linear-gradient(135deg,#1a1f2e,#141820)", border:"1px solid rgba(250,204,21,0.2)", borderRadius:20, padding:"24px", marginBottom:16, cursor:"pointer", position:"relative" }}>
                   <div style={{ position:"absolute", top:16, right:16, fontSize:12, color:"rgba(250,204,21,0.5)", fontWeight:600 }}>상세보기 →</div>
                   <div style={{ fontSize:13, color:"#6b7280", marginBottom:8 }}>현재 잔액</div>
                   <div style={{ fontSize:38, fontWeight:900, color:"#facc15", letterSpacing:"-1px", lineHeight:1 }}>{balance.toLocaleString()}<span style={{ fontSize:18, marginLeft:3 }}>원</span></div>
-                  <div style={{ marginTop:16 }}>
-                    <div style={{ fontSize:12, color:"#6b7280" }}>2026 지출</div>
-                    <div style={{ fontSize:16, fontWeight:700, color:"#f87171", marginTop:2 }}>{totalExpenses.toLocaleString()}원</div>
+                  <div style={{ marginTop:16, display:"flex", gap:24 }}>
+                    <div>
+                      <div style={{ fontSize:12, color:"#6b7280" }}>2026 지출</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:"#f87171", marginTop:2 }}>{totalExpenses.toLocaleString()}원</div>
+                    </div>
+                    {totalIncomes > 0 && <div>
+                      <div style={{ fontSize:12, color:"#6b7280" }}>추가 수입</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:"#4ade80", marginTop:2 }}>+{totalIncomes.toLocaleString()}원</div>
+                    </div>}
                   </div>
                 </div>
 
+                {/* 납부 현황 */}
                 <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:18, padding:"18px", marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
                     <span style={{ fontSize:16, fontWeight:700 }}>{MONTHS[new Date().getMonth()]} 납부 현황</span>
                     <span style={{ fontSize:14, color:"#ef4444", fontWeight:700 }}>미납 {unpaidCount(new Date().getMonth())}명</span>
                   </div>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
-                    {autoMembers.map(m => <div key={m.id} style={{ background:"rgba(74,222,128,0.1)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:20, padding:"5px 13px", fontSize:13, color:"#4ade80" }}>{m.name}</div>)}
+                    {paidNames.map(n => <div key={n} style={{ background:"rgba(74,222,128,0.1)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:20, padding:"5px 13px", fontSize:13, color:"#4ade80" }}>{n}</div>)}
                     {unpaidNames.slice(0,3).map(n => <div key={n} style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.15)", borderRadius:20, padding:"5px 13px", fontSize:13, color:"#f87171" }}>{n}</div>)}
                     {unpaidNames.length > 3 && <div style={{ background:"#1e2535", borderRadius:20, padding:"5px 13px", fontSize:13, color:"#6b7280" }}>+{unpaidNames.length-3}명</div>}
                   </div>
                 </div>
 
+                {/* 최근 지출 */}
                 <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:18, padding:"18px" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
                     <span style={{ fontSize:16, fontWeight:700 }}>최근 지출</span>
-                    <span onClick={() => setScreen("dues_detail")} style={{ fontSize:13, color:"#facc15", cursor:"pointer" }}>전체보기 →</span>
+                    <span onClick={goToDetail} style={{ fontSize:13, color:"#facc15", cursor:"pointer" }}>전체보기 →</span>
                   </div>
                   {recentExpenses.length === 0
                     ? <div style={{ fontSize:14, color:"#4b5563", textAlign:"center", padding:"16px 0" }}>2026년 지출 내역이 없어요</div>
                     : recentExpenses.map(e => (
                       <div key={e.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px solid #1e2535" }}>
-                        <div style={{ background:catColor(e.category), borderRadius:6, padding:"3px 8px", fontSize:12, fontWeight:600, color:"#fff", flexShrink:0 }}>{e.category}</div>
                         <div style={{ flex:1, fontSize:14 }}>{e.desc}</div>
                         <div style={{ fontSize:14, fontWeight:700, color:"#f87171" }}>-{e.amount.toLocaleString()}원</div>
                       </div>
@@ -239,6 +308,7 @@ export default function App() {
               </div>
             )}
 
+            {/* ── 일정 탭 ── */}
             {tab==="schedule" && (
               <div className="fade">
                 <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>다가오는 일정</div>
@@ -254,7 +324,7 @@ export default function App() {
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       <div style={{ fontSize:12, fontWeight:600, background:"rgba(255,255,255,0.05)", borderRadius:8, padding:"4px 10px", color:e.tagColor }}>{e.tag}</div>
-                      {isAdmin && <button onClick={() => deleteSchedule(e.id)} style={{ background:"none", border:"none", color:"#374151", cursor:"pointer", fontSize:18 }}>×</button>}
+                      {isAdmin && <button onClick={() => deleteSchedule(e.id)} style={{ background:"none", border:"none", color:"#374151", cursor:"pointer", fontSize:20 }}>×</button>}
                     </div>
                   </div>
                 ))}
@@ -262,6 +332,8 @@ export default function App() {
                 {isAdmin && (
                   <button onClick={() => setShowAdd(true)} style={{ width:"100%", background:"rgba(250,204,21,0.08)", border:"1px dashed rgba(250,204,21,0.3)", borderRadius:16, padding:"14px", color:"#facc15", fontSize:15, fontWeight:600, cursor:"pointer", marginTop:8 }}>+ 일정 추가</button>
                 )}
+
+                {/* 일정 추가 모달 */}
                 {showAdd && (
                   <div onClick={() => setShowAdd(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"flex-end", zIndex:200 }}>
                     <div onClick={e => e.stopPropagation()} style={{ width:"100%", background:"#141820", borderRadius:"24px 24px 0 0", padding:"28px 20px 40px" }}>
@@ -284,22 +356,32 @@ export default function App() {
               </div>
             )}
 
+            {/* ── 멤버 탭 ── */}
             {tab==="members" && (
               <div className="fade">
                 <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>전체 멤버 · 18명</div>
-                {ALL_MEMBERS.slice(0, showAll?18:5).map((m,i) => (
-                  <div key={i} style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"14px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
-                    <div style={{ width:44, height:44, borderRadius:"50%", background:"linear-gradient(135deg,#1e2535,#2a3245)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:900, color:"#facc15", flexShrink:0 }}>{m.name[0]}</div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                        <span style={{ fontSize:16, fontWeight:700 }}>{m.name}</span>
-                        {m.role && <span style={{ fontSize:11, background:"rgba(250,204,21,0.1)", color:"#facc15", borderRadius:5, padding:"2px 7px", fontWeight:700 }}>{m.role}</span>}
+                {isAdmin && <div style={{ fontSize:12, color:"#6b7280", marginBottom:10 }}>💡 이체 유형 탭하면 변경돼요</div>}
+                {ALL_MEMBERS.slice(0, showAll?18:5).map((m) => {
+                  const mType = memberTypes[m.id] || m.payType;
+                  return (
+                    <div key={m.id} style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"14px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
+                      <div style={{ width:44, height:44, borderRadius:"50%", background:"linear-gradient(135deg,#1e2535,#2a3245)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:900, color:"#facc15", flexShrink:0 }}>{m.name[0]}</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                          <span style={{ fontSize:16, fontWeight:700 }}>{m.name}</span>
+                          {m.role && <span style={{ fontSize:11, background:"rgba(250,204,21,0.1)", color:"#facc15", borderRadius:5, padding:"2px 7px", fontWeight:700 }}>{m.role}</span>}
+                        </div>
+                        <div style={{ fontSize:13, color:"#4b5563", marginTop:3 }}>{m.phone}</div>
                       </div>
-                      <div style={{ fontSize:13, color:"#4b5563", marginTop:3 }}>{m.phone}</div>
+                      <div
+                        onClick={() => cycleMemberType(m.id)}
+                        style={{ fontSize:12, fontWeight:600, color:PAY_TYPE_COLOR[mType], background:PAY_TYPE_BG[mType], borderRadius:8, padding:"6px 12px", cursor:isAdmin?"pointer":"default", border:`1px solid ${isAdmin?"rgba(255,255,255,0.1)":"transparent"}` }}
+                      >
+                        {PAY_TYPE_LABEL[mType]}
+                      </div>
                     </div>
-                    <div style={{ fontSize:12, fontWeight:600, color:m.payType==="auto"?"#4ade80":"#6b7280", background:m.payType==="auto"?"rgba(74,222,128,0.1)":"#1e2535", borderRadius:8, padding:"4px 10px" }}>{m.payType==="auto"?"자동":"수동"}이체</div>
-                  </div>
-                ))}
+                  );
+                })}
                 <button onClick={() => setShowAll(p=>!p)} style={{ width:"100%", background:"none", border:"1px solid #1e2535", borderRadius:14, padding:"13px", color:"#6b7280", fontSize:14, fontWeight:600, cursor:"pointer", marginTop:4 }}>
                   {showAll?"▲ 접기":"▼ +13명 더보기"}
                 </button>
@@ -307,8 +389,18 @@ export default function App() {
             )}
           </div>
 
-          {/* Admin 버튼 */}
-          <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 20px 32px", background:"linear-gradient(180deg,transparent,#0b0e14 50%)", display:"flex", justifyContent:"center" }}>
+          {/* 하단 버튼 */}
+          <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 20px 32px", background:"linear-gradient(180deg,transparent,#0b0e14 50%)", display:"flex", justifyContent:"center", gap:10 }}>
+            {!isInstalled && installPrompt && (
+              <button onClick={async () => {
+                installPrompt.prompt();
+                const { outcome } = await installPrompt.userChoice;
+                if (outcome === "accepted") setIsInstalled(true);
+                setInstallPrompt(null);
+              }} style={{ background:"rgba(250,204,21,0.1)", border:"1px solid rgba(250,204,21,0.3)", borderRadius:20, padding:"9px 20px", color:"#facc15", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                📲 앱 설치
+              </button>
+            )}
             <button onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminModal(true)} style={{ background:isAdmin?"rgba(74,222,128,0.1)":"rgba(255,255,255,0.04)", border:`1px solid ${isAdmin?"rgba(74,222,128,0.3)":"rgba(255,255,255,0.08)"}`, borderRadius:20, padding:"9px 24px", color:isAdmin?"#4ade80":"#374151", fontSize:13, fontWeight:600, cursor:"pointer" }}>
               {isAdmin?"🔑 관리자 모드 종료":"ADMIN"}
             </button>
@@ -316,10 +408,11 @@ export default function App() {
         </div>
 
       ) : (
+        /* ── 회비 상세 ── */
         <div className="slide" style={{ display:"flex", flexDirection:"column", minHeight:"100vh" }}>
           <div style={{ padding:"52px 20px 16px", background:"#0f1420", borderBottom:"1px solid #1e2535" }}>
             <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-              <button onClick={() => setScreen("main")} style={{ background:"#1e2535", border:"none", color:"#e5e7eb", borderRadius:12, width:40, height:40, fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>←</button>
+              <button onClick={goToMain} style={{ background:"#1e2535", border:"none", color:"#e5e7eb", borderRadius:12, width:40, height:40, fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>←</button>
               <div>
                 <div style={{ fontSize:20, fontWeight:700 }}>회비 상세</div>
                 <div style={{ fontSize:13, color:"#4b5563", marginTop:2 }}>잔액 <span style={{ color:"#facc15", fontWeight:700 }}>{balance.toLocaleString()}원</span></div>
@@ -328,6 +421,7 @@ export default function App() {
           </div>
 
           <div style={{ flex:1, padding:"20px 20px 60px" }}>
+            {/* 월 선택 */}
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:18 }}>
               {MONTHS.map((m,i) => (
                 <button key={i} onClick={() => setSelMonth(i)} style={{ background:selMonth===i?"#facc15":"#141820", border:`1px solid ${selMonth===i?"#facc15":"#1e2535"}`, color:selMonth===i?"#0b0e14":"#6b7280", borderRadius:20, padding:"6px 13px", fontSize:13, cursor:"pointer", fontWeight:selMonth===i?700:400, position:"relative" }}>
@@ -337,18 +431,21 @@ export default function App() {
               ))}
             </div>
 
-            <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:14, padding:"12px 16px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            {/* 미납 요약 */}
+            <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:14, padding:"12px 16px", marginBottom:14, display:"flex", justifyContent:"space-between" }}>
               <span style={{ fontSize:15, color:"#9ca3af" }}>{MONTHS[selMonth]} 미납</span>
               <span style={{ fontSize:16, fontWeight:700, color:"#ef4444" }}>{unpaidCount(selMonth)}명</span>
             </div>
 
+            {/* 납부 리스트 */}
             {ALL_MEMBERS.map(m => {
               const paid = payments[m.id]?.[selMonth];
+              const mType = memberTypes[m.id] || m.payType;
               return (
                 <div key={m.id} style={{ display:"flex", alignItems:"center", background:"#141820", border:`1px solid ${paid?"rgba(250,204,21,0.2)":"#1e2535"}`, borderRadius:12, padding:"13px 16px", marginBottom:8 }}>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:16, fontWeight:600, color:paid?"#facc15":"#d1d5db" }}>{m.name}</div>
-                    <div style={{ fontSize:12, color:m.payType==="auto"?"#4ade80":"#6b7280", marginTop:2 }}>{m.payType==="auto"?"자동이체":"수동"}</div>
+                    <div style={{ fontSize:12, color:PAY_TYPE_COLOR[mType], marginTop:2 }}>{PAY_TYPE_LABEL[mType]}</div>
                   </div>
                   {isAdmin
                     ? <button onClick={() => togglePayment(m.id, selMonth)} style={{ background:paid?"rgba(250,204,21,0.15)":"#1e2535", border:`1px solid ${paid?"#facc15":"#374151"}`, color:paid?"#facc15":"#6b7280", borderRadius:10, padding:"8px 18px", fontSize:14, cursor:"pointer", fontWeight:600 }}>{paid?"✓ 납부":"미납"}</button>
@@ -359,36 +456,59 @@ export default function App() {
             })}
 
             <div style={{ height:1, background:"#1e2535", margin:"24px 0" }}/>
-            <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>지출 내역</div>
 
+            {/* 수입 섹션 */}
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>수입 내역</div>
             {isAdmin && (
               <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"16px", marginBottom:16 }}>
-                <div style={{ fontSize:13, color:"#facc15", fontWeight:600, marginBottom:12 }}>+ 지출 추가</div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
-                  <input type="date" value={newExp.date} onChange={e => setNewExp(p=>({...p,date:e.target.value}))} style={inp}/>
-                  <select value={newExp.category} onChange={e => setNewExp(p=>({...p,category:e.target.value}))} style={{...inp, appearance:"none"}}>
-                    {["경조사","소모임","축구","기타"].map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <input placeholder="내용" value={newExp.desc} onChange={e => setNewExp(p=>({...p,desc:e.target.value}))} style={{...inp, marginBottom:10}}/>
+                <div style={{ fontSize:13, color:"#4ade80", fontWeight:600, marginBottom:12 }}>+ 수입 추가</div>
+                <input type="date" value={newInc.date} onChange={e => setNewInc(p=>({...p,date:e.target.value}))} style={{...inp, marginBottom:10}}/>
+                <input placeholder="내용 (예: 4월 회비 추가납부)" value={newInc.desc} onChange={e => setNewInc(p=>({...p,desc:e.target.value}))} style={{...inp, marginBottom:10}}/>
                 <div style={{ display:"flex", gap:10 }}>
-                  <input placeholder="금액 (원)" type="number" value={newExp.amount} onChange={e => setNewExp(p=>({...p,amount:e.target.value}))} style={{...inp}}/>
-                  <button onClick={addExpense} style={{ background:"#facc15", border:"none", color:"#0b0e14", borderRadius:10, padding:"0 20px", fontSize:15, cursor:"pointer", fontWeight:700, whiteSpace:"nowrap" }}>추가</button>
+                  <input placeholder="금액 (원)" type="number" value={newInc.amount} onChange={e => setNewInc(p=>({...p,amount:e.target.value}))} style={inp}/>
+                  <button onClick={addIncome} style={{ background:"#4ade80", border:"none", color:"#0b0e14", borderRadius:10, padding:"0 20px", fontSize:15, cursor:"pointer", fontWeight:700, whiteSpace:"nowrap" }}>추가</button>
                 </div>
               </div>
             )}
+            {incomes.length === 0
+              ? <div style={{ fontSize:14, color:"#4b5563", textAlign:"center", padding:"12px 0" }}>수입 내역이 없어요</div>
+              : [...incomes].sort((a,b)=>b.date.localeCompare(a.date)).map(e => (
+                <div key={e.id} style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:12, padding:"14px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:15, fontWeight:600 }}>{e.desc}</div>
+                    <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{e.date}</div>
+                  </div>
+                  <div style={{ fontSize:15, fontWeight:700, color:"#4ade80" }}>+{e.amount.toLocaleString()}원</div>
+                  {isAdmin && <button onClick={() => deleteIncome(e.id)} style={{ background:"none", border:"none", color:"#374151", cursor:"pointer", fontSize:20 }}>×</button>}
+                </div>
+              ))
+            }
 
+            <div style={{ height:1, background:"#1e2535", margin:"24px 0" }}/>
+
+            {/* 지출 섹션 */}
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>지출 내역</div>
+            {isAdmin && (
+              <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"16px", marginBottom:16 }}>
+                <div style={{ fontSize:13, color:"#f87171", fontWeight:600, marginBottom:12 }}>+ 지출 추가</div>
+                <input type="date" value={newExp.date} onChange={e => setNewExp(p=>({...p,date:e.target.value}))} style={{...inp, marginBottom:10}}/>
+                <input placeholder="내용 (예: 한석현 결혼 축의금)" value={newExp.desc} onChange={e => setNewExp(p=>({...p,desc:e.target.value}))} style={{...inp, marginBottom:10}}/>
+                <div style={{ display:"flex", gap:10 }}>
+                  <input placeholder="금액 (원)" type="number" value={newExp.amount} onChange={e => setNewExp(p=>({...p,amount:e.target.value}))} style={inp}/>
+                  <button onClick={addExpense} style={{ background:"#f87171", border:"none", color:"#0b0e14", borderRadius:10, padding:"0 20px", fontSize:15, cursor:"pointer", fontWeight:700, whiteSpace:"nowrap" }}>추가</button>
+                </div>
+              </div>
+            )}
             {expenses.length === 0
-              ? <div style={{ fontSize:14, color:"#4b5563", textAlign:"center", padding:"20px 0" }}>지출 내역이 없어요</div>
+              ? <div style={{ fontSize:14, color:"#4b5563", textAlign:"center", padding:"12px 0" }}>지출 내역이 없어요</div>
               : [...expenses].sort((a,b)=>b.date.localeCompare(a.date)).map(e => (
                 <div key={e.id} style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:12, padding:"14px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ background:catColor(e.category), borderRadius:6, padding:"4px 9px", fontSize:12, fontWeight:600, color:"#fff", flexShrink:0 }}>{e.category}</div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:15, fontWeight:600 }}>{e.desc}</div>
                     <div style={{ fontSize:12, color:"#6b7280", marginTop:2 }}>{e.date}</div>
                   </div>
                   <div style={{ fontSize:15, fontWeight:700, color:"#f87171" }}>-{e.amount.toLocaleString()}원</div>
-                  {isAdmin && <button onClick={() => deleteExpense(e.id)} style={{ background:"none", border:"none", color:"#374151", cursor:"pointer", fontSize:18 }}>×</button>}
+                  {isAdmin && <button onClick={() => deleteExpense(e.id)} style={{ background:"none", border:"none", color:"#374151", cursor:"pointer", fontSize:20 }}>×</button>}
                 </div>
               ))
             }
@@ -396,7 +516,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 관리자 비밀번호 모달 */}
+      {/* 관리자 모달 */}
       {showAdminModal && (
         <div onClick={() => { setShowAdminModal(false); setPwInput(""); setPwError(false); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"flex-end", zIndex:300 }}>
           <div onClick={e => e.stopPropagation()} style={{ width:"100%", background:"#141820", borderRadius:"24px 24px 0 0", padding:"28px 20px 40px" }}>
