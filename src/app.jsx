@@ -82,6 +82,7 @@ const inp = {
 
 export default function App() {
   const [tab, setTab]               = useState("dues");
+  const [slideDir, setSlideDir]     = useState(0); // -1: 왼쪽, 1: 오른쪽
   const TABS = ["dues", "schedule", "members"];
   const touchStart = { x: 0, y: 0 };
   const [screen, setScreen]         = useState("main");
@@ -243,9 +244,13 @@ export default function App() {
     <div style={{ minHeight:"100vh", background:"#0b0e14", color:"#e5e7eb", fontFamily:"'Noto Sans KR',sans-serif" }}>
       <style>{`
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes slideIn { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
-        .fade { animation: fadeUp 0.25s ease; }
-        .slide { animation: slideIn 0.25s ease; }
+        @keyframes slideInRight { from{opacity:0;transform:translateX(100%)} to{opacity:1;transform:translateX(0)} }
+        @keyframes slideInLeft  { from{opacity:0;transform:translateX(-100%)} to{opacity:1;transform:translateX(0)} }
+        @keyframes slideInScreen { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
+        .fade-left  { animation: slideInLeft  0.3s cubic-bezier(0.25,0.46,0.45,0.94); }
+        .fade-right { animation: slideInRight 0.3s cubic-bezier(0.25,0.46,0.45,0.94); }
+        .fade  { animation: fadeUp 0.25s ease; }
+        .slide { animation: slideInScreen 0.25s ease; }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         input, select, button { font-family: 'Noto Sans KR', sans-serif; }
       `}</style>
@@ -284,14 +289,14 @@ export default function App() {
               const dy = e.changedTouches[0].clientY - touchStart.y;
               if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
               const cur = TABS.indexOf(tab);
-              if (dx < 0) setTab(TABS[(cur + 1) % TABS.length]);
-              else setTab(TABS[(cur - 1 + TABS.length) % TABS.length]);
+              if (dx < 0) { setSlideDir(-1); setTab(TABS[(cur + 1) % TABS.length]); }
+              else { setSlideDir(1); setTab(TABS[(cur - 1 + TABS.length) % TABS.length]); }
             }}
           >
 
             {/* ── 회비 탭 ── */}
             {tab==="dues" && (
-              <div className="fade">
+              <div className={slideDir <= 0 ? "fade-right" : "fade-left"}>
                 {/* 잔액 카드 */}
                 <div onClick={goToDetail} style={{ background:"linear-gradient(135deg,#1a1f2e,#141820)", border:"1px solid rgba(250,204,21,0.2)", borderRadius:20, padding:"24px", marginBottom:16, cursor:"pointer", position:"relative" }}>
                   <div style={{ position:"absolute", top:16, right:16, fontSize:12, color:"rgba(250,204,21,0.5)", fontWeight:600 }}>상세보기 →</div>
@@ -347,7 +352,7 @@ export default function App() {
 
             {/* ── 일정 탭 ── */}
             {tab==="schedule" && (
-              <div className="fade">
+              <div className={slideDir <= 0 ? "fade-right" : "fade-left"}>
                 <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>다가오는 일정</div>
                 {[...schedules].sort((a,b) => a.month*100+a.day-(b.month*100+b.day)).map(e => (
                   <div key={e.id} style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"16px", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
@@ -395,7 +400,7 @@ export default function App() {
 
             {/* ── 멤버 탭 ── */}
             {tab==="members" && (
-              <div className="fade">
+              <div className={slideDir <= 0 ? "fade-right" : "fade-left"}>
                 <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>전체 멤버 · 18명</div>
                 {isAdmin && <div style={{ fontSize:12, color:"#6b7280", marginBottom:10 }}>💡 이체 유형 탭하면 변경돼요</div>}
                 {ALL_MEMBERS.slice(0, showAll?18:5).map((m) => {
