@@ -307,7 +307,7 @@ export default function App() {
                   <div style={{ fontSize:13, color:"#6b7280", marginBottom:8 }}>현재 잔액</div>
                   <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <div style={{ fontSize:38, fontWeight:900, color:"#facc15", letterSpacing:"-1px", lineHeight:1 }}>{balance.toLocaleString()}<span style={{ fontSize:18, marginLeft:3 }}>원</span></div>
-                    <div onClick={() => { navigator.clipboard.writeText("110295247627"); setCopyMsg(true); setTimeout(()=>setCopyMsg(false),1500); }} style={{ fontSize:11, color:copyMsg?"#4ade80":"#6b7280", background:"#1e2535", borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:4, cursor:"pointer", transition:"color 0.2s" }}><span>🏦</span><span>{copyMsg ? "복사됨 ✓" : "110-295-247-627 신한"}</span></div>
+                    <div onClick={e => { e.stopPropagation(); navigator.clipboard.writeText("110295247627"); setCopyMsg(true); setTimeout(()=>setCopyMsg(false),1500); }} style={{ fontSize:11, color:copyMsg?"#4ade80":"#6b7280", background:"#1e2535", borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:4, cursor:"pointer", transition:"color 0.2s" }}><span>🏦</span><span>{copyMsg ? "복사됨 ✓" : "110-295-247-627 신한"}</span></div>
                   </div>
                   <div style={{ marginTop:16, display:"flex", gap:24 }}>
                     <div>
@@ -351,6 +351,22 @@ export default function App() {
                     ))
                   }
                 </div>
+
+                {/* 최근 수입 */}
+                {incomes.length > 0 && (
+                  <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:18, padding:"18px", marginTop:16 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
+                      <span style={{ fontSize:16, fontWeight:700 }}>최근 수입</span>
+                      <span onClick={goToDetail} style={{ fontSize:13, color:"#4ade80", cursor:"pointer" }}>전체보기 →</span>
+                    </div>
+                    {[...incomes].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).map(e => (
+                      <div key={e.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px solid #1e2535" }}>
+                        <div style={{ flex:1, fontSize:14 }}>{e.desc}</div>
+                        <div style={{ fontSize:14, fontWeight:700, color:"#4ade80" }}>+{e.amount.toLocaleString()}원</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -409,9 +425,6 @@ export default function App() {
                 {isAdmin && <div style={{ fontSize:12, color:"#6b7280", marginBottom:10 }}>💡 이체 유형 탭하면 변경돼요</div>}
                 {ALL_MEMBERS.slice(0, showAll?18:5).map((m) => {
                   const mType = memberTypes[m.id] || m.payType;
-                  const unpaid26 = MONTHS.filter((_, i) => !payments[m.id]?.[i]).length;
-                  const extra = EXTRA_UNPAID[m.id] || 0;
-                  const totalDebt = unpaid26 * DUES_PER_MONTH + extra;
                   return (
                     <div key={m.id} style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"14px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
                       <div style={{ width:44, height:44, borderRadius:"50%", background:"linear-gradient(135deg,#1e2535,#2a3245)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:900, color:"#facc15", flexShrink:0 }}>{m.name[0]}</div>
@@ -420,14 +433,7 @@ export default function App() {
                           <span style={{ fontSize:16, fontWeight:700 }}>{m.name}</span>
                           {m.role && <span style={{ fontSize:11, background:"rgba(250,204,21,0.1)", color:"#facc15", borderRadius:5, padding:"2px 7px", fontWeight:700 }}>{m.role}</span>}
                         </div>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:3 }}>
-                          <div style={{ fontSize:13, color:"#4b5563" }}>{m.phone}</div>
-                          {totalDebt > 0 && (
-                            <div style={{ fontSize:11, fontWeight:700, color:"#ef4444", background:"rgba(239,68,68,0.1)", borderRadius:6, padding:"2px 7px" }}>
-                              미납 {totalDebt.toLocaleString()}원
-                            </div>
-                          )}
-                        </div>
+                        <div style={{ fontSize:13, color:"#4b5563", marginTop:3 }}>{m.phone}</div>
                       </div>
                       <div
                         onClick={() => cycleMemberType(m.id)}
@@ -492,10 +498,17 @@ export default function App() {
             {ALL_MEMBERS.map(m => {
               const paid = payments[m.id]?.[selMonth];
               const mType = memberTypes[m.id] || m.payType;
+              const curMonth = new Date().getMonth();
+              const unpaid26 = MONTHS.filter((_, i) => i <= curMonth && !payments[m.id]?.[i]).length;
+              const extra = EXTRA_UNPAID[m.id] || 0;
+              const totalDebt = unpaid26 * DUES_PER_MONTH + extra;
               return (
                 <div key={m.id} style={{ display:"flex", alignItems:"center", background:"#141820", border:`1px solid ${paid?"rgba(250,204,21,0.2)":"#1e2535"}`, borderRadius:12, padding:"13px 16px", marginBottom:8 }}>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:16, fontWeight:600, color:paid?"#facc15":"#d1d5db" }}>{m.name}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                      <div style={{ fontSize:16, fontWeight:600, color:paid?"#facc15":"#d1d5db" }}>{m.name}</div>
+                      {totalDebt > 0 && <div style={{ fontSize:11, fontWeight:700, color:"#ef4444", background:"rgba(239,68,68,0.1)", borderRadius:6, padding:"2px 7px" }}>{totalDebt.toLocaleString()}원</div>}
+                    </div>
                     <div style={{ fontSize:12, color:PAY_TYPE_COLOR[mType], marginTop:2 }}>{PAY_TYPE_LABEL[mType]}</div>
                   </div>
                   {isAdmin
