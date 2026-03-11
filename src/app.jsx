@@ -230,7 +230,7 @@ export default function App() {
   };
 
   const addPhoto = () => {
-    if (!newPhoto.url || !newPhoto.title) return;
+    if (!newPhoto.url) return;
     const updated = [{ ...newPhoto, id: Date.now() }, ...photos];
     setPhotos(updated); save({ photos: updated });
     setNewPhoto({ url:"", title:"" });
