@@ -206,8 +206,8 @@ export default function App() {
   const unpaidNames = ALL_MEMBERS.filter(m => !payments[m.id]?.[new Date().getMonth()]).map(m => m.name);
   const totalExpenses  = expenses.reduce((s, e) => s + e.amount, 0);
   const totalIncomes   = incomes.reduce((s, e) => s + e.amount, 0);
-  const totalCollected = ALL_MEMBERS.reduce((sum, m) => sum + MONTHS.filter((_, i) => payments[m.id]?.[i]).length * DUES_PER_MONTH, 0);
-  const balance = INITIAL_BALANCE + totalCollected + totalIncomes - totalExpenses;
+  
+  const balance = INITIAL_BALANCE + totalIncomes - totalExpenses;
   const recentExpenses = [...expenses].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
 
   if (loading) return (
