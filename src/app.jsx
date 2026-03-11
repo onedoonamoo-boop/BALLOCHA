@@ -101,6 +101,7 @@ export default function App() {
   const [pwError, setPwError]       = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
 
   // PWA 설치 감지
   useEffect(() => {
@@ -262,8 +263,11 @@ export default function App() {
                 {/* 잔액 카드 */}
                 <div onClick={goToDetail} style={{ background:"linear-gradient(135deg,#1a1f2e,#141820)", border:"1px solid rgba(250,204,21,0.2)", borderRadius:20, padding:"24px", marginBottom:16, cursor:"pointer", position:"relative" }}>
                   <div style={{ position:"absolute", top:16, right:16, fontSize:12, color:"rgba(250,204,21,0.5)", fontWeight:600 }}>상세보기 →</div>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}><div style={{ fontSize:13, color:"#6b7280" }}>현재 잔액</div><div style={{ fontSize:11, color:"#4b5563", background:"#1e2535", borderRadius:8, padding:"4px 10px", display:"flex", alignItems:"center", gap:5 }}><span>🏦</span><span>110-399-676673 신한</span></div></div>
-                  <div style={{ fontSize:38, fontWeight:900, color:"#facc15", letterSpacing:"-1px", lineHeight:1 }}>{balance.toLocaleString()}<span style={{ fontSize:18, marginLeft:3 }}>원</span></div>
+                  <div style={{ fontSize:13, color:"#6b7280", marginBottom:8 }}>현재 잔액</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                    <div style={{ fontSize:38, fontWeight:900, color:"#facc15", letterSpacing:"-1px", lineHeight:1 }}>{balance.toLocaleString()}<span style={{ fontSize:18, marginLeft:3 }}>원</span></div>
+                    <div style={{ fontSize:11, color:"#6b7280", background:"#1e2535", borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:4 }}><span>🏦</span><span>110-399-676673 신한</span></div>
+                  </div>
                   <div style={{ marginTop:16, display:"flex", gap:24 }}>
                     <div>
                       <div style={{ fontSize:12, color:"#6b7280" }}>2026 지출</div>
@@ -282,11 +286,12 @@ export default function App() {
                     <span style={{ fontSize:16, fontWeight:700 }}>{MONTHS[new Date().getMonth()]} 납부 현황</span>
                     <span style={{ fontSize:14, color:"#ef4444", fontWeight:700 }}>미납 {unpaidCount(new Date().getMonth())}명</span>
                   </div>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
-                    {paidNames.map(n => <div key={n} style={{ background:"rgba(74,222,128,0.1)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:20, padding:"5px 13px", fontSize:13, color:"#4ade80" }}>{n}</div>)}
-                    {unpaidNames.slice(0,3).map(n => <div key={n} style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.15)", borderRadius:20, padding:"5px 13px", fontSize:13, color:"#f87171" }}>{n}</div>)}
-                    {unpaidNames.length > 3 && <div style={{ background:"#1e2535", borderRadius:20, padding:"5px 13px", fontSize:13, color:"#6b7280" }}>+{unpaidNames.length-3}명</div>}
-                  </div>
+                  {unpaidNames.length === 0
+                    ? <div style={{ fontSize:14, color:"#4ade80", textAlign:"center", padding:"8px 0" }}>✓ 전원 납부 완료!</div>
+                    : <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
+                        {unpaidNames.map(n => <div key={n} style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.15)", borderRadius:20, padding:"5px 13px", fontSize:13, color:"#f87171" }}>{n}</div>)}
+                      </div>
+                  }
                 </div>
 
                 {/* 최근 지출 */}
@@ -391,13 +396,8 @@ export default function App() {
 
           {/* 하단 버튼 */}
           <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 20px 32px", background:"linear-gradient(180deg,transparent,#0b0e14 50%)", display:"flex", justifyContent:"center", gap:10 }}>
-            {!isInstalled && installPrompt && (
-              <button onClick={async () => {
-                installPrompt.prompt();
-                const { outcome } = await installPrompt.userChoice;
-                if (outcome === "accepted") setIsInstalled(true);
-                setInstallPrompt(null);
-              }} style={{ background:"rgba(250,204,21,0.1)", border:"1px solid rgba(250,204,21,0.3)", borderRadius:20, padding:"9px 20px", color:"#facc15", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+            {!isInstalled && (
+              <button onClick={() => setShowInstallGuide(true)} style={{ background:"rgba(250,204,21,0.1)", border:"1px solid rgba(250,204,21,0.3)", borderRadius:20, padding:"9px 20px", color:"#facc15", fontSize:13, fontWeight:600, cursor:"pointer" }}>
                 📲 앱 설치
               </button>
             )}
@@ -512,6 +512,51 @@ export default function App() {
                 </div>
               ))
             }
+          </div>
+        </div>
+      )}
+
+      {/* 앱 설치 안내 모달 */}
+      {showInstallGuide && (
+        <div onClick={() => setShowInstallGuide(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"flex-end", zIndex:300 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width:"100%", background:"#141820", borderRadius:"24px 24px 0 0", padding:"28px 20px 40px" }}>
+            <div style={{ fontSize:20, fontWeight:700, marginBottom:6 }}>📲 앱 설치 방법</div>
+            <div style={{ fontSize:13, color:"#6b7280", marginBottom:24 }}>홈 화면에 추가하면 앱처럼 사용할 수 있어요!</div>
+
+            {/* 안드로이드 */}
+            <div style={{ background:"#1a2a1a", border:"1px solid rgba(74,222,128,0.2)", borderRadius:16, padding:"16px", marginBottom:12 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:"#4ade80", marginBottom:10 }}>🤖 안드로이드</div>
+              <div style={{ fontSize:14, color:"#d1d5db", lineHeight:1.7 }}>
+                1. 크롬으로 접속<br/>
+                2. 아래 <b style={{color:"#facc15"}}>앱 설치</b> 버튼 탭<br/>
+                3. 보안 경고 뜨면 <b style={{color:"#facc15"}}>"무시하고 설치"</b> 탭
+              </div>
+            </div>
+
+            {/* 아이폰 */}
+            <div style={{ background:"#1a1a2a", border:"1px solid rgba(96,165,250,0.2)", borderRadius:16, padding:"16px", marginBottom:24 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:"#60a5fa", marginBottom:10 }}>🍎 아이폰</div>
+              <div style={{ fontSize:14, color:"#d1d5db", lineHeight:1.7 }}>
+                1. <b style={{color:"#facc15"}}>사파리</b>로 접속 (크롬 ✗)<br/>
+                2. 하단 공유 버튼 탭 (□↑)<br/>
+                3. <b style={{color:"#facc15"}}>"홈 화면에 추가"</b> 탭
+              </div>
+            </div>
+
+            {installPrompt && (
+              <button onClick={async () => {
+                setShowInstallGuide(false);
+                installPrompt.prompt();
+                const { outcome } = await installPrompt.userChoice;
+                if (outcome === "accepted") setIsInstalled(true);
+                setInstallPrompt(null);
+              }} style={{ width:"100%", background:"#facc15", border:"none", borderRadius:14, padding:"16px", color:"#0b0e14", fontSize:16, fontWeight:700, cursor:"pointer", marginBottom:10 }}>
+                바로 설치하기
+              </button>
+            )}
+            <button onClick={() => setShowInstallGuide(false)} style={{ width:"100%", background:"none", border:"1px solid #1e2535", borderRadius:14, padding:"14px", color:"#6b7280", fontSize:15, cursor:"pointer" }}>
+              닫기
+            </button>
           </div>
         </div>
       )}
