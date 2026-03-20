@@ -19,7 +19,7 @@ const INITIAL_BALANCE = 1086802;
 const ADMIN_PW = "2351";
 
 // 2025년 추가 미납금 (원)
-const EXTRA_UNPAID = { 3: 0, 15: 0, 16: 120000 }; // 구본영, 최덕성, 최재원
+const EXTRA_UNPAID = { 3: 120000, 15: 100000, 16: 120000 }; // 구본영, 최덕성, 최재원
 
 const ALL_MEMBERS = [
   { id: 1,  name: "유준호", phone: "010-5116-2351", role: "총무", payType: "auto"   },
@@ -244,6 +244,16 @@ export default function App() {
     setPhotoIdx(0);
   };
 
+  const addAutoIncome = () => {
+    const cur = new Date().getMonth();
+    const autoMembers = ALL_MEMBERS.filter(m => (memberTypes[m.id] || m.payType) === "auto");
+    const amount = autoMembers.length * DUES_PER_MONTH;
+    const today = new Date().toISOString().slice(0, 10);
+    const desc = `${MONTHS[cur]} 자동이체 (${autoMembers.length}명)`;
+    const updated = [...incomes, { date: today, desc, amount, id: Date.now() }];
+    setIncomes(updated); save({ incomes: updated });
+  };
+
   const handleAdminLogin = () => {
     if (pwInput === ADMIN_PW) { setIsAdmin(true); setShowAdminModal(false); setPwInput(""); setPwError(false); }
     else setPwError(true);
@@ -255,7 +265,11 @@ export default function App() {
   const totalExpenses  = expenses.reduce((s, e) => s + e.amount, 0);
   const totalIncomes   = incomes.reduce((s, e) => s + e.amount, 0);
   
-  const balance = INITIAL_BALANCE + totalIncomes - totalExpenses;
+  const totalPaid = ALL_MEMBERS.reduce((sum, m) => {
+    const curMonth = new Date().getMonth();
+    return sum + MONTHS.filter((_, i) => i <= curMonth && payments[m.id]?.[i]).length;
+  }, 0);
+  const balance = INITIAL_BALANCE + (totalPaid * DUES_PER_MONTH) + totalIncomes - totalExpenses;
   const recentExpenses = [...expenses].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
 
   if (loading) return (
@@ -329,7 +343,7 @@ export default function App() {
                   <div style={{ fontSize:13, color:"#6b7280", marginBottom:8 }}>현재 잔액</div>
                   <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <div style={{ fontSize:38, fontWeight:900, color:"#facc15", letterSpacing:"-1px", lineHeight:1 }}>{balance.toLocaleString()}<span style={{ fontSize:18, marginLeft:3 }}>원</span></div>
-                    <div onClick={e => { e.stopPropagation(); navigator.clipboard.writeText("110399676673"); setCopyMsg(true); setTimeout(()=>setCopyMsg(false),1500); }} style={{ fontSize:11, color:copyMsg?"#4ade80":"#6b7280", background:"#1e2535", borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:4, cursor:"pointer", transition:"color 0.2s" }}><span>🏦</span><span>{copyMsg ? "복사됨 ✓" : "110-399-676673 신한"}</span></div>
+                    <div onClick={e => { e.stopPropagation(); navigator.clipboard.writeText("110295247627"); setCopyMsg(true); setTimeout(()=>setCopyMsg(false),1500); }} style={{ fontSize:11, color:copyMsg?"#4ade80":"#6b7280", background:"#1e2535", borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:4, cursor:"pointer", transition:"color 0.2s" }}><span>🏦</span><span>{copyMsg ? "복사됨 ✓" : "110-295-247-627 신한"}</span></div>
                   </div>
                   <div style={{ marginTop:16, display:"flex", gap:24 }}>
                     <div>
@@ -614,6 +628,11 @@ export default function App() {
 
             {/* 수입 섹션 */}
             <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>수입 내역</div>
+            {isAdmin && (
+              <button onClick={addAutoIncome} style={{ width:"100%", background:"rgba(74,222,128,0.08)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:14, padding:"13px", color:"#4ade80", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
+                ⚡ {MONTHS[new Date().getMonth()]} 자동이체 일괄 등록
+              </button>
+            )}
             {isAdmin && (
               <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"16px", marginBottom:16 }}>
                 <div style={{ fontSize:13, color:"#4ade80", fontWeight:600, marginBottom:12 }}>+ 수입 추가</div>
