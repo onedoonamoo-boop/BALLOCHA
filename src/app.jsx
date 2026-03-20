@@ -19,7 +19,7 @@ const INITIAL_BALANCE = 1086802;
 const ADMIN_PW = "2351";
 
 // 2025년 추가 미납금 (원)
-const EXTRA_UNPAID = { 3: 120000, 15: 100000, 16: 120000 }; // 구본영, 최덕성, 최재원
+const EXTRA_UNPAID = { 3: 0, 15: 0, 16: 120000 }; // 구본영, 최덕성, 최재원
 
 const ALL_MEMBERS = [
   { id: 1,  name: "유준호", phone: "010-5116-2351", role: "총무", payType: "auto"   },
