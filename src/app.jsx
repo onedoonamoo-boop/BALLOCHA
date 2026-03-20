@@ -265,11 +265,7 @@ export default function App() {
   const totalExpenses  = expenses.reduce((s, e) => s + e.amount, 0);
   const totalIncomes   = incomes.reduce((s, e) => s + e.amount, 0);
   
-  const totalPaid = ALL_MEMBERS.reduce((sum, m) => {
-    const curMonth = new Date().getMonth();
-    return sum + MONTHS.filter((_, i) => i <= curMonth && payments[m.id]?.[i]).length;
-  }, 0);
-  const balance = INITIAL_BALANCE + (totalPaid * DUES_PER_MONTH) + totalIncomes - totalExpenses;
+  const balance = INITIAL_BALANCE + totalIncomes - totalExpenses;
   const recentExpenses = [...expenses].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
 
   if (loading) return (
