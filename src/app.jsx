@@ -544,9 +544,9 @@ export default function App() {
               if (isAdmin) {
                 setIsAdmin(false);
                 if (notice?.active) {
-                  const today = new Date().toISOString().slice(0,10);
-                  const hidden = localStorage.getItem(`notice_${notice.id}`);
-                  if (hidden !== today) setShowNotice(true);
+                  const today = new Date().toISOString().slice(0, 10);
+                  const hiddenUntil = localStorage.getItem("notice_hidden");
+                  if (hiddenUntil !== today) setShowNotice(true);
                 }
               } else {
                 setShowAdminModal(true);
@@ -709,8 +709,8 @@ export default function App() {
               <div style={{ marginTop:24, display:"flex", flexDirection:"column", gap:8 }}>
                 <button onClick={() => setShowNotice(false)} style={{ width:"100%", background:"#facc15", border:"none", borderRadius:14, padding:"14px", color:"#0b0e14", fontSize:15, fontWeight:700, cursor:"pointer" }}>확인</button>
                 <button onClick={() => {
-                  const today = new Date().toISOString().slice(0,10);
-                  localStorage.setItem(`notice_${notice.id}`, today);
+                  const today = new Date().toISOString().slice(0, 10);
+                  localStorage.setItem("notice_hidden", today);
                   setShowNotice(false);
                 }} style={{ width:"100%", background:"none", border:"1px solid #1e2535", borderRadius:14, padding:"12px", color:"#6b7280", fontSize:14, cursor:"pointer" }}>오늘 하루 보지 않기</button>
               </div>
