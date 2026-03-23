@@ -161,8 +161,8 @@ export default function App() {
         if (d.notice?.active) {
           setNotice(d.notice);
           const today = new Date().toISOString().slice(0, 10);
-          const hidden = localStorage.getItem(`notice_${d.notice.id}`);
-          if (hidden !== today) setShowNotice(true);
+          const hiddenUntil = localStorage.getItem("notice_hidden");
+          if (hiddenUntil !== today) setShowNotice(true);
         }
       }
       setLoading(false);
@@ -256,15 +256,21 @@ export default function App() {
   };
 
   // 공지사항
-  const saveNotice = () => {
+  const [editingNotice, setEditingNotice] = useState(false);
+
+  const updateNotice = () => {
     if (!noticeInput.title || !noticeInput.body) return;
-    const n = { ...noticeInput, id: Date.now(), active: true };
+    const n = { title: noticeInput.title, body: noticeInput.body, id: notice?.id || Date.now(), active: true };
     setNotice(n); save({ notice: n });
-    setNoticeInput({ title:"", body:"" });
+    setEditingNotice(false);
+    // 공지 수정하면 오늘 숨기기 초기화 (다시 팝업 뜨게)
+    localStorage.removeItem("notice_hidden");
+    setShowNotice(true);
   };
 
   const deleteNotice = () => {
     setNotice(null); save({ notice: { active: false } });
+    setEditingNotice(false);
   };
 
   const handleAdminLogin = () => {
@@ -413,6 +419,40 @@ export default function App() {
             {/* ── 일정 탭 ── */}
             {tab==="schedule" && (
               <div className={slideDir <= 0 ? "fade-right" : "fade-left"}>
+
+                {/* 공지사항 */}
+                {(notice?.active || isAdmin) && (
+                  <div style={{ background:"linear-gradient(135deg,rgba(250,204,21,0.1),rgba(245,158,11,0.05))", border:"1px solid rgba(250,204,21,0.25)", borderRadius:18, padding:"16px 18px", marginBottom:16 }}>
+                    {notice?.active && !editingNotice ? (
+                      <div>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                          <div>
+                            <div style={{ fontSize:11, color:"#f59e0b", fontWeight:700, marginBottom:4 }}>📢 공지사항</div>
+                            <div style={{ fontSize:16, fontWeight:700, color:"#facc15", marginBottom:6 }}>{notice.title}</div>
+                            <div style={{ fontSize:14, color:"#d1d5db", lineHeight:1.7, whiteSpace:"pre-wrap" }}>{notice.body}</div>
+                          </div>
+                          {isAdmin && (
+                            <div style={{ display:"flex", gap:6, marginLeft:10, flexShrink:0 }}>
+                              <button onClick={() => { setNoticeInput({ title:notice.title, body:notice.body }); setEditingNotice(true); }} style={{ background:"rgba(250,204,21,0.1)", border:"1px solid rgba(250,204,21,0.2)", borderRadius:8, padding:"5px 12px", color:"#facc15", fontSize:12, cursor:"pointer" }}>수정</button>
+                              <button onClick={deleteNotice} style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:8, padding:"5px 12px", color:"#f87171", fontSize:12, cursor:"pointer" }}>삭제</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : isAdmin ? (
+                      <div>
+                        <div style={{ fontSize:11, color:"#f59e0b", fontWeight:700, marginBottom:10 }}>📢 공지사항 {editingNotice ? "수정" : "등록"}</div>
+                        <input placeholder="공지 제목" value={noticeInput.title} onChange={e => setNoticeInput(p=>({...p,title:e.target.value}))} style={{...inp, marginBottom:8}}/>
+                        <textarea placeholder="공지 내용" value={noticeInput.body} onChange={e => setNoticeInput(p=>({...p,body:e.target.value}))} style={{...inp, minHeight:80, resize:"none"}}/>
+                        <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                          <button onClick={updateNotice} style={{ flex:1, background:"#facc15", border:"none", borderRadius:10, padding:"11px", color:"#0b0e14", fontSize:14, fontWeight:700, cursor:"pointer" }}>저장</button>
+                          {editingNotice && <button onClick={() => setEditingNotice(false)} style={{ background:"none", border:"1px solid #1e2535", borderRadius:10, padding:"11px 16px", color:"#6b7280", fontSize:14, cursor:"pointer" }}>취소</button>}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
                 <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>다가오는 일정</div>
                 {[...schedules].sort((a,b) => a.month*100+a.day-(b.month*100+b.day)).map(e => (
                   <div key={e.id} style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"16px", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
@@ -611,28 +651,7 @@ export default function App() {
 
             <div style={{ height:1, background:"#1e2535", margin:"24px 0" }}/>
 
-            {/* 공지사항 관리 (관리자 전용) */}
-            {isAdmin && (
-              <div style={{ marginBottom:24 }}>
-                <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>📢 공지사항 관리</div>
-                {notice?.active && (
-                  <div style={{ background:"rgba(250,204,21,0.08)", border:"1px solid rgba(250,204,21,0.2)", borderRadius:14, padding:"14px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:10 }}>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:14, fontWeight:700, color:"#facc15" }}>{notice.title}</div>
-                      <div style={{ fontSize:12, color:"#6b7280", marginTop:3 }}>활성화됨</div>
-                    </div>
-                    <button onClick={deleteNotice} style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:10, padding:"6px 14px", color:"#f87171", fontSize:13, cursor:"pointer" }}>삭제</button>
-                  </div>
-                )}
-                <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"16px" }}>
-                  <input placeholder="공지 제목" value={noticeInput.title} onChange={e => setNoticeInput(p=>({...p,title:e.target.value}))} style={{...inp, marginBottom:10}}/>
-                  <textarea placeholder="공지 내용" value={noticeInput.body} onChange={e => setNoticeInput(p=>({...p,body:e.target.value}))} style={{...inp, minHeight:90, resize:"none"}}/>
-                  <button onClick={saveNotice} style={{ marginTop:10, width:"100%", background:"#facc15", border:"none", borderRadius:12, padding:"12px", color:"#0b0e14", fontSize:14, fontWeight:700, cursor:"pointer" }}>공지 등록</button>
-                </div>
-              </div>
-            )}
-
-            {/* 수입 섹션 */}
+            {/* 수입 섹션 */
             <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>수입 내역</div>
             {isAdmin && (
               <button onClick={addAutoIncome} style={{ width:"100%", background:"rgba(74,222,128,0.08)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:14, padding:"13px", color:"#4ade80", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
