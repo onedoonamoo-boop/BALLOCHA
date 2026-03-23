@@ -651,7 +651,7 @@ export default function App() {
 
             <div style={{ height:1, background:"#1e2535", margin:"24px 0" }}/>
 
-            {/* 수입 섹션 */
+            {/* 수입 섹션 */}
             <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>수입 내역</div>
             {isAdmin && (
               <button onClick={addAutoIncome} style={{ width:"100%", background:"rgba(74,222,128,0.08)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:14, padding:"13px", color:"#4ade80", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
