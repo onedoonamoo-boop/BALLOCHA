@@ -540,7 +540,18 @@ export default function App() {
             {!isInstalled && (
               <button onClick={() => setShowInstallGuide(true)} style={{ background:"rgba(250,204,21,0.1)", border:"1px solid rgba(250,204,21,0.3)", borderRadius:20, padding:"9px 20px", color:"#facc15", fontSize:13, fontWeight:600, cursor:"pointer" }}>📲 앱 설치</button>
             )}
-            <button onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminModal(true)} style={{ background:isAdmin?"rgba(74,222,128,0.1)":"rgba(255,255,255,0.04)", border:`1px solid ${isAdmin?"rgba(74,222,128,0.3)":"rgba(255,255,255,0.08)"}`, borderRadius:20, padding:"9px 24px", color:isAdmin?"#4ade80":"#374151", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+            <button onClick={() => {
+              if (isAdmin) {
+                setIsAdmin(false);
+                if (notice?.active) {
+                  const today = new Date().toISOString().slice(0,10);
+                  const hidden = localStorage.getItem(`notice_${notice.id}`);
+                  if (hidden !== today) setShowNotice(true);
+                }
+              } else {
+                setShowAdminModal(true);
+              }
+            }} style={{ background:isAdmin?"rgba(74,222,128,0.1)":"rgba(255,255,255,0.04)", border:`1px solid ${isAdmin?"rgba(74,222,128,0.3)":"rgba(255,255,255,0.08)"}`, borderRadius:20, padding:"9px 24px", color:isAdmin?"#4ade80":"#374151", fontSize:13, fontWeight:600, cursor:"pointer" }}>
               {isAdmin?"🔑 관리자 모드 종료":"ADMIN"}
             </button>
           </div>
