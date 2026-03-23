@@ -54,7 +54,6 @@ const INIT_SCHEDULES = [
   { id: 2, month: 4, day: 11, title: "한석현 결혼식",    sub: "", tag: "💍 경사", tagColor: "#facc15" },
 ];
 
-// 자동이체 멤버 기본 납부 초기화
 function initPayments() {
   const p = {};
   const cur = new Date().getMonth();
@@ -65,7 +64,6 @@ function initPayments() {
   return p;
 }
 
-// 멤버 납부유형 초기화 (auto/manual/done)
 function initMemberTypes() {
   const t = {};
   ALL_MEMBERS.forEach(m => { t[m.id] = m.payType; });
@@ -85,7 +83,7 @@ const inp = {
 
 export default function App() {
   const [tab, setTab]               = useState("dues");
-  const [slideDir, setSlideDir]     = useState(0); // -1: 왼쪽, 1: 오른쪽
+  const [slideDir, setSlideDir]     = useState(0);
   const TABS = ["dues", "schedule", "members", "gallery"];
   const touchStart = { x: 0, y: 0 };
   const [screen, setScreen]         = useState("main");
@@ -113,9 +111,12 @@ export default function App() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
-  const [copyMsg, setCopyMsg] = useState(false);
+  const [copyMsg, setCopyMsg]       = useState(false);
+  // 공지사항
+  const [notice, setNotice]         = useState(null);
+  const [showNotice, setShowNotice] = useState(false);
+  const [noticeInput, setNoticeInput] = useState({ title:"", body:"" });
 
-  // PWA 설치 감지
   useEffect(() => {
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
@@ -124,7 +125,6 @@ export default function App() {
     if (window.matchMedia('(display-mode: standalone)').matches) setIsInstalled(true);
   }, []);
 
-  // 기기 뒤로가기 버튼 처리
   useEffect(() => {
     const handlePop = () => { setScreen("main"); };
     window.addEventListener('popstate', handlePop);
@@ -136,18 +136,14 @@ export default function App() {
     setScreen("dues_detail");
   };
 
-  const goToMain = () => {
-    window.history.back();
-  };
+  const goToMain = () => { window.history.back(); };
 
-  // Firebase 실시간 동기화
   useEffect(() => {
     const ref = doc(db, "fc-ballocha", "data");
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) {
         const d = snap.data();
         if (d.payments) {
-          // 자동이체 멤버는 현재 월까지 항상 납부 완료 처리
           const cur = new Date().getMonth();
           const merged = { ...d.payments };
           ALL_MEMBERS.filter(m => m.payType === "auto").forEach(m => {
@@ -161,6 +157,13 @@ export default function App() {
         if (d.schedules)   setSchedules(d.schedules);
         if (d.memberTypes) setMemberTypes(d.memberTypes);
         if (d.photos)      setPhotos(d.photos);
+        // 공지사항
+        if (d.notice?.active) {
+          setNotice(d.notice);
+          const today = new Date().toISOString().slice(0, 10);
+          const hidden = localStorage.getItem(`notice_${d.notice.id}`);
+          if (hidden !== today) setShowNotice(true);
+        }
       }
       setLoading(false);
     });
@@ -217,8 +220,6 @@ export default function App() {
     const next = PAY_TYPE_CYCLE[memberTypes[mid]] || "auto";
     const updatedTypes = { ...memberTypes, [mid]: next };
     setMemberTypes(updatedTypes);
-
-    // 완납으로 변경 시 1~12월 전부 납부 처리
     if (next === "done") {
       const updatedPayments = { ...payments, [mid]: {} };
       MONTHS.forEach((_, i) => { updatedPayments[mid][i] = true; });
@@ -233,7 +234,7 @@ export default function App() {
     if (!newPhoto.url) return;
     const updated = [{ ...newPhoto, id: Date.now() }, ...photos];
     setPhotos(updated); save({ photos: updated });
-    setNewPhoto({ url:"", title:"" });
+    setNewPhoto({ url:"" });
     setPhotoIdx(0);
     setShowAddPhoto(false);
   };
@@ -254,6 +255,18 @@ export default function App() {
     setIncomes(updated); save({ incomes: updated });
   };
 
+  // 공지사항
+  const saveNotice = () => {
+    if (!noticeInput.title || !noticeInput.body) return;
+    const n = { ...noticeInput, id: Date.now(), active: true };
+    setNotice(n); save({ notice: n });
+    setNoticeInput({ title:"", body:"" });
+  };
+
+  const deleteNotice = () => {
+    setNotice(null); save({ notice: { active: false } });
+  };
+
   const handleAdminLogin = () => {
     if (pwInput === ADMIN_PW) { setIsAdmin(true); setShowAdminModal(false); setPwInput(""); setPwError(false); }
     else setPwError(true);
@@ -264,7 +277,6 @@ export default function App() {
   const unpaidNames = ALL_MEMBERS.filter(m => !payments[m.id]?.[new Date().getMonth()]).map(m => m.name);
   const totalExpenses  = expenses.reduce((s, e) => s + e.amount, 0);
   const totalIncomes   = incomes.reduce((s, e) => s + e.amount, 0);
-  
   const balance = INITIAL_BALANCE + totalIncomes - totalExpenses;
   const recentExpenses = [...expenses].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
 
@@ -287,7 +299,7 @@ export default function App() {
         .fade  { animation: fadeUp 0.25s ease; }
         .slide { animation: slideInScreen 0.25s ease; }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        input, select, button { font-family: 'Noto Sans KR', sans-serif; }
+        input, select, button, textarea { font-family: 'Noto Sans KR', sans-serif; }
       `}</style>
 
       {screen === "main" ? (
@@ -333,7 +345,6 @@ export default function App() {
             {/* ── 회비 탭 ── */}
             {tab==="dues" && (
               <div className={slideDir <= 0 ? "fade-right" : "fade-left"}>
-                {/* 잔액 카드 */}
                 <div onClick={goToDetail} style={{ background:"linear-gradient(135deg,#1a1f2e,#141820)", border:"1px solid rgba(250,204,21,0.2)", borderRadius:20, padding:"24px", marginBottom:16, cursor:"pointer", position:"relative" }}>
                   <div style={{ position:"absolute", top:16, right:16, fontSize:12, color:"rgba(250,204,21,0.5)", fontWeight:600 }}>상세보기 →</div>
                   <div style={{ fontSize:13, color:"#6b7280", marginBottom:8 }}>현재 잔액</div>
@@ -353,7 +364,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 납부 현황 */}
                 <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:18, padding:"18px", marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
                     <span style={{ fontSize:16, fontWeight:700 }}>{MONTHS[new Date().getMonth()]} 납부 현황</span>
@@ -367,7 +377,6 @@ export default function App() {
                   }
                 </div>
 
-                {/* 최근 지출 */}
                 <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:18, padding:"18px" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
                     <span style={{ fontSize:16, fontWeight:700 }}>최근 지출</span>
@@ -384,7 +393,6 @@ export default function App() {
                   }
                 </div>
 
-                {/* 최근 수입 */}
                 {incomes.length > 0 && (
                   <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:18, padding:"18px", marginTop:16 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
@@ -425,7 +433,6 @@ export default function App() {
                 {schedules.length === 0 && <div style={{ fontSize:14, color:"#4b5563", textAlign:"center", padding:"24px 0" }}>등록된 일정이 없어요</div>}
                 <button onClick={() => setShowAdd(true)} style={{ width:"100%", background:"rgba(250,204,21,0.08)", border:"1px dashed rgba(250,204,21,0.3)", borderRadius:16, padding:"14px", color:"#facc15", fontSize:15, fontWeight:600, cursor:"pointer", marginTop:8 }}>+ 일정 추가</button>
 
-                {/* 일정 추가 모달 */}
                 {showAdd && (
                   <div onClick={() => setShowAdd(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"flex-end", zIndex:200 }}>
                     <div onClick={e => e.stopPropagation()} style={{ width:"100%", background:"#141820", borderRadius:"24px 24px 0 0", padding:"28px 20px 40px" }}>
@@ -465,10 +472,7 @@ export default function App() {
                         </div>
                         <div style={{ fontSize:13, color:"#4b5563", marginTop:3 }}>{m.phone}</div>
                       </div>
-                      <div
-                        onClick={() => cycleMemberType(m.id)}
-                        style={{ fontSize:12, fontWeight:600, color:PAY_TYPE_COLOR[mType], background:PAY_TYPE_BG[mType], borderRadius:8, padding:"6px 12px", cursor:isAdmin?"pointer":"default", border:`1px solid ${isAdmin?"rgba(255,255,255,0.1)":"transparent"}` }}
-                      >
+                      <div onClick={() => cycleMemberType(m.id)} style={{ fontSize:12, fontWeight:600, color:PAY_TYPE_COLOR[mType], background:PAY_TYPE_BG[mType], borderRadius:8, padding:"6px 12px", cursor:isAdmin?"pointer":"default", border:`1px solid ${isAdmin?"rgba(255,255,255,0.1)":"transparent"}` }}>
                         {PAY_TYPE_LABEL[mType]}
                       </div>
                     </div>
@@ -491,9 +495,7 @@ export default function App() {
                   </div>
                 ) : (
                   <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
-                    {/* 사진 카드 */}
-                    <div
-                      style={{ height:"100%", display:"flex", flexDirection:"column" }}
+                    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}
                       onTouchStart={e => { photoTouchStart.x = e.touches[0].clientX; }}
                       onTouchEnd={e => {
                         const dx = e.changedTouches[0].clientX - photoTouchStart.x;
@@ -502,28 +504,13 @@ export default function App() {
                         if (dx > 0 && photoIdx > 0) setPhotoIdx(p => p - 1);
                       }}
                     >
-                      {/* 이미지 */}
                       <div style={{ position:"relative", borderRadius:20, overflow:"hidden", background:"#141820", width:"100%" }}>
-                        <img
-                          src={photos[photoIdx].url}
-                          style={{ width:"100%", height:"auto", display:"block", borderRadius:20 }}
-                        />
-                        {/* 인덱스 */}
-                        <div style={{ position:"absolute", top:12, right:12, background:"rgba(0,0,0,0.5)", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff" }}>
-                          {photoIdx + 1} / {photos.length}
-                        </div>
-                        {/* 삭제 버튼 */}
-                        {isAdmin && (
-                          <button onClick={() => deletePhoto(photos[photoIdx].id)} style={{ position:"absolute", top:12, left:12, background:"rgba(239,68,68,0.7)", border:"none", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff", cursor:"pointer" }}>삭제</button>
-                        )}
-                        {/* 좌우 화살표 힌트 */}
+                        <img src={photos[photoIdx].url} style={{ width:"100%", height:"auto", display:"block", borderRadius:20 }}/>
+                        <div style={{ position:"absolute", top:12, right:12, background:"rgba(0,0,0,0.5)", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff" }}>{photoIdx + 1} / {photos.length}</div>
+                        {isAdmin && <button onClick={() => deletePhoto(photos[photoIdx].id)} style={{ position:"absolute", top:12, left:12, background:"rgba(239,68,68,0.7)", border:"none", borderRadius:20, padding:"4px 12px", fontSize:12, color:"#fff", cursor:"pointer" }}>삭제</button>}
                         {photoIdx > 0 && <div style={{ position:"absolute", left:16, top:"50%", transform:"translateY(-50%)", fontSize:32, color:"rgba(255,255,255,0.7)", textShadow:"0 0 8px rgba(0,0,0,0.8)" }}>‹</div>}
                         {photoIdx < photos.length-1 && <div style={{ position:"absolute", right:16, top:"50%", transform:"translateY(-50%)", fontSize:32, color:"rgba(255,255,255,0.7)", textShadow:"0 0 8px rgba(0,0,0,0.8)" }}>›</div>}
                       </div>
-
-
-
-                      {/* 점 인디케이터 */}
                       <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:12 }}>
                         {photos.map((_, i) => (
                           <div key={i} onClick={() => setPhotoIdx(i)} style={{ width: i===photoIdx?20:6, height:6, borderRadius:3, background: i===photoIdx?"#facc15":"#1e2535", transition:"all 0.2s", cursor:"pointer" }}/>
@@ -532,13 +519,9 @@ export default function App() {
                     </div>
                   </div>
                 )}
-
-                {/* 추가 버튼 */}
                 {isAdmin && photos.length > 0 && (
                   <button onClick={() => setShowAddPhoto(true)} style={{ marginTop:12, width:"100%", background:"rgba(250,204,21,0.08)", border:"1px dashed rgba(250,204,21,0.3)", borderRadius:14, padding:"12px", color:"#facc15", fontSize:14, fontWeight:600, cursor:"pointer" }}>+ 사진 추가</button>
                 )}
-
-                {/* 사진 추가 모달 */}
                 {showAddPhoto && (
                   <div onClick={() => setShowAddPhoto(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"flex-end", zIndex:200 }}>
                     <div onClick={e => e.stopPropagation()} style={{ width:"100%", background:"#141820", borderRadius:"24px 24px 0 0", padding:"28px 20px 40px" }}>
@@ -555,9 +538,7 @@ export default function App() {
           {/* 하단 버튼 */}
           <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 20px 32px", background:"linear-gradient(180deg,transparent,#0b0e14 50%)", display:"flex", justifyContent:"center", gap:10 }}>
             {!isInstalled && (
-              <button onClick={() => setShowInstallGuide(true)} style={{ background:"rgba(250,204,21,0.1)", border:"1px solid rgba(250,204,21,0.3)", borderRadius:20, padding:"9px 20px", color:"#facc15", fontSize:13, fontWeight:600, cursor:"pointer" }}>
-                📲 앱 설치
-              </button>
+              <button onClick={() => setShowInstallGuide(true)} style={{ background:"rgba(250,204,21,0.1)", border:"1px solid rgba(250,204,21,0.3)", borderRadius:20, padding:"9px 20px", color:"#facc15", fontSize:13, fontWeight:600, cursor:"pointer" }}>📲 앱 설치</button>
             )}
             <button onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminModal(true)} style={{ background:isAdmin?"rgba(74,222,128,0.1)":"rgba(255,255,255,0.04)", border:`1px solid ${isAdmin?"rgba(74,222,128,0.3)":"rgba(255,255,255,0.08)"}`, borderRadius:20, padding:"9px 24px", color:isAdmin?"#4ade80":"#374151", fontSize:13, fontWeight:600, cursor:"pointer" }}>
               {isAdmin?"🔑 관리자 모드 종료":"ADMIN"}
@@ -579,7 +560,6 @@ export default function App() {
           </div>
 
           <div style={{ flex:1, padding:"20px 20px 60px" }}>
-            {/* 월 선택 */}
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:18 }}>
               {MONTHS.map((m,i) => (
                 <button key={i} onClick={() => setSelMonth(i)} style={{ background:selMonth===i?"#facc15":"#141820", border:`1px solid ${selMonth===i?"#facc15":"#1e2535"}`, color:selMonth===i?"#0b0e14":"#6b7280", borderRadius:20, padding:"6px 13px", fontSize:13, cursor:"pointer", fontWeight:selMonth===i?700:400, position:"relative" }}>
@@ -589,13 +569,11 @@ export default function App() {
               ))}
             </div>
 
-            {/* 미납 요약 */}
             <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:14, padding:"12px 16px", marginBottom:14, display:"flex", justifyContent:"space-between" }}>
               <span style={{ fontSize:15, color:"#9ca3af" }}>{MONTHS[selMonth]} 미납</span>
               <span style={{ fontSize:16, fontWeight:700, color:"#ef4444" }}>{unpaidCount(selMonth)}명</span>
             </div>
 
-            {/* 납부 리스트 */}
             {ALL_MEMBERS.map(m => {
               const paid = payments[m.id]?.[selMonth];
               const mType = memberTypes[m.id] || m.payType;
@@ -621,6 +599,27 @@ export default function App() {
             })}
 
             <div style={{ height:1, background:"#1e2535", margin:"24px 0" }}/>
+
+            {/* 공지사항 관리 (관리자 전용) */}
+            {isAdmin && (
+              <div style={{ marginBottom:24 }}>
+                <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>📢 공지사항 관리</div>
+                {notice?.active && (
+                  <div style={{ background:"rgba(250,204,21,0.08)", border:"1px solid rgba(250,204,21,0.2)", borderRadius:14, padding:"14px 16px", marginBottom:10, display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:14, fontWeight:700, color:"#facc15" }}>{notice.title}</div>
+                      <div style={{ fontSize:12, color:"#6b7280", marginTop:3 }}>활성화됨</div>
+                    </div>
+                    <button onClick={deleteNotice} style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:10, padding:"6px 14px", color:"#f87171", fontSize:13, cursor:"pointer" }}>삭제</button>
+                  </div>
+                )}
+                <div style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"16px" }}>
+                  <input placeholder="공지 제목" value={noticeInput.title} onChange={e => setNoticeInput(p=>({...p,title:e.target.value}))} style={{...inp, marginBottom:10}}/>
+                  <textarea placeholder="공지 내용" value={noticeInput.body} onChange={e => setNoticeInput(p=>({...p,body:e.target.value}))} style={{...inp, minHeight:90, resize:"none"}}/>
+                  <button onClick={saveNotice} style={{ marginTop:10, width:"100%", background:"#facc15", border:"none", borderRadius:12, padding:"12px", color:"#0b0e14", fontSize:14, fontWeight:700, cursor:"pointer" }}>공지 등록</button>
+                </div>
+              </div>
+            )}
 
             {/* 수입 섹션 */}
             <div style={{ fontSize:16, fontWeight:700, marginBottom:14 }}>수입 내역</div>
@@ -686,14 +685,35 @@ export default function App() {
         </div>
       )}
 
+      {/* 공지사항 팝업 */}
+      {showNotice && notice && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:500, padding:"24px" }}>
+          <div style={{ width:"100%", maxWidth:360, background:"#141820", borderRadius:24, overflow:"hidden" }}>
+            <div style={{ background:"linear-gradient(135deg,#facc15,#f59e0b)", padding:"20px 24px" }}>
+              <div style={{ fontSize:12, color:"#78350f", fontWeight:700, marginBottom:4 }}>📢 공지사항</div>
+              <div style={{ fontSize:20, fontWeight:900, color:"#0b0e14" }}>{notice.title}</div>
+            </div>
+            <div style={{ padding:"20px 24px 28px" }}>
+              <div style={{ fontSize:15, color:"#d1d5db", lineHeight:1.8, whiteSpace:"pre-wrap" }}>{notice.body}</div>
+              <div style={{ marginTop:24, display:"flex", flexDirection:"column", gap:8 }}>
+                <button onClick={() => setShowNotice(false)} style={{ width:"100%", background:"#facc15", border:"none", borderRadius:14, padding:"14px", color:"#0b0e14", fontSize:15, fontWeight:700, cursor:"pointer" }}>확인</button>
+                <button onClick={() => {
+                  const today = new Date().toISOString().slice(0,10);
+                  localStorage.setItem(`notice_${notice.id}`, today);
+                  setShowNotice(false);
+                }} style={{ width:"100%", background:"none", border:"1px solid #1e2535", borderRadius:14, padding:"12px", color:"#6b7280", fontSize:14, cursor:"pointer" }}>오늘 하루 보지 않기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 앱 설치 안내 모달 */}
       {showInstallGuide && (
         <div onClick={() => setShowInstallGuide(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"flex-end", zIndex:300 }}>
           <div onClick={e => e.stopPropagation()} style={{ width:"100%", background:"#141820", borderRadius:"24px 24px 0 0", padding:"28px 20px 40px" }}>
             <div style={{ fontSize:20, fontWeight:700, marginBottom:6 }}>📲 앱 설치 방법</div>
             <div style={{ fontSize:13, color:"#6b7280", marginBottom:24 }}>홈 화면에 추가하면 앱처럼 사용할 수 있어요!</div>
-
-            {/* 안드로이드 */}
             <div style={{ background:"#1a2a1a", border:"1px solid rgba(74,222,128,0.2)", borderRadius:16, padding:"16px", marginBottom:12 }}>
               <div style={{ fontSize:15, fontWeight:700, color:"#4ade80", marginBottom:10 }}>🤖 안드로이드</div>
               <div style={{ fontSize:14, color:"#d1d5db", lineHeight:1.7 }}>
@@ -702,8 +722,6 @@ export default function App() {
                 3. 보안 경고 뜨면 <b style={{color:"#facc15"}}>"무시하고 설치"</b> 탭
               </div>
             </div>
-
-            {/* 아이폰 */}
             <div style={{ background:"#1a1a2a", border:"1px solid rgba(96,165,250,0.2)", borderRadius:16, padding:"16px", marginBottom:24 }}>
               <div style={{ fontSize:15, fontWeight:700, color:"#60a5fa", marginBottom:10 }}>🍎 아이폰</div>
               <div style={{ fontSize:14, color:"#d1d5db", lineHeight:1.7 }}>
@@ -712,7 +730,6 @@ export default function App() {
                 3. <b style={{color:"#facc15"}}>"홈 화면에 추가"</b> 탭
               </div>
             </div>
-
             {installPrompt && (
               <button onClick={async () => {
                 setShowInstallGuide(false);
@@ -720,13 +737,9 @@ export default function App() {
                 const { outcome } = await installPrompt.userChoice;
                 if (outcome === "accepted") setIsInstalled(true);
                 setInstallPrompt(null);
-              }} style={{ width:"100%", background:"#facc15", border:"none", borderRadius:14, padding:"16px", color:"#0b0e14", fontSize:16, fontWeight:700, cursor:"pointer", marginBottom:10 }}>
-                바로 설치하기
-              </button>
+              }} style={{ width:"100%", background:"#facc15", border:"none", borderRadius:14, padding:"16px", color:"#0b0e14", fontSize:16, fontWeight:700, cursor:"pointer", marginBottom:10 }}>바로 설치하기</button>
             )}
-            <button onClick={() => setShowInstallGuide(false)} style={{ width:"100%", background:"none", border:"1px solid #1e2535", borderRadius:14, padding:"14px", color:"#6b7280", fontSize:15, cursor:"pointer" }}>
-              닫기
-            </button>
+            <button onClick={() => setShowInstallGuide(false)} style={{ width:"100%", background:"none", border:"1px solid #1e2535", borderRadius:14, padding:"14px", color:"#6b7280", fontSize:15, cursor:"pointer" }}>닫기</button>
           </div>
         </div>
       )}
