@@ -356,7 +356,7 @@ export default function App() {
                   <div style={{ fontSize:13, color:"#6b7280", marginBottom:8 }}>현재 잔액</div>
                   <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <div style={{ fontSize:38, fontWeight:900, color:"#facc15", letterSpacing:"-1px", lineHeight:1 }}>{balance.toLocaleString()}<span style={{ fontSize:18, marginLeft:3 }}>원</span></div>
-                    <div onClick={e => { e.stopPropagation(); navigator.clipboard.writeText("110295247627"); setCopyMsg(true); setTimeout(()=>setCopyMsg(false),1500); }} style={{ fontSize:11, color:copyMsg?"#4ade80":"#6b7280", background:"#1e2535", borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:4, cursor:"pointer", transition:"color 0.2s" }}><span>🏦</span><span>{copyMsg ? "복사됨 ✓" : "110-295-247-627 신한"}</span></div>
+                    <div onClick={e => { e.stopPropagation(); navigator.clipboard.writeText("110399676673"); setCopyMsg(true); setTimeout(()=>setCopyMsg(false),1500); }} style={{ fontSize:11, color:copyMsg?"#4ade80":"#6b7280", background:"#1e2535", borderRadius:8, padding:"5px 10px", display:"flex", alignItems:"center", gap:4, cursor:"pointer", transition:"color 0.2s" }}><span>🏦</span><span>{copyMsg ? "복사됨 ✓" : "110-399-676-673 신한"}</span></div>
                   </div>
                   <div style={{ marginTop:16, display:"flex", gap:24 }}>
                     <div>
