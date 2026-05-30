@@ -195,7 +195,7 @@ export default function App() {
 
   // 문자알림 컬렉션 실시간 구독
   useEffect(() => {
-    const colRef = collection(db, "fc-ballocha", "sms_messages", "items");
+    const colRef = collection(db, "sms_messages");
     const unsub = onSnapshot(colRef, (snap) => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       // 최신순 정렬 (receivedAt 기준)
@@ -286,7 +286,7 @@ export default function App() {
 
   const deleteSmsMessage = async (id) => {
     try {
-      await deleteDoc(doc(db, "fc-ballocha", "sms_messages", "items", id));
+      await deleteDoc(doc(db, "sms_messages", id));
     } catch (e) { console.error(e); }
   };
 
