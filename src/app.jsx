@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, onSnapshot, setDoc } from "firebase/firestore";
+import { getFirestore, doc, onSnapshot, setDoc, collection, deleteDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBx1PRfUQkrjSMrSBUmsPkf1jNdtKUaCgg",
@@ -81,10 +81,30 @@ const inp = {
   fontSize: 15, outline: "none", width: "100%", boxSizing: "border-box",
 };
 
+function formatSmsTime(ts) {
+  if (!ts) return "";
+  // Firestore Timestamp 또는 ISO string 모두 처리
+  const date = ts?.toDate ? ts.toDate() : new Date(ts);
+  if (isNaN(date)) return "";
+  const now = new Date();
+  const diff = now - date;
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  if (mins < 1) return "방금 전";
+  if (mins < 60) return `${mins}분 전`;
+  if (hours < 24) return `${hours}시간 전`;
+  const y = date.getFullYear();
+  const mo = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+  const mi = String(date.getMinutes()).padStart(2, "0");
+  return `${y}.${mo}.${d} ${h}:${mi}`;
+}
+
 export default function App() {
   const [tab, setTab]               = useState("dues");
   const [slideDir, setSlideDir]     = useState(0);
-  const TABS = ["dues", "schedule", "members", "gallery"];
+  const TABS = ["dues", "schedule", "sms", "members", "gallery"];
   const touchStart = { x: 0, y: 0 };
   const [screen, setScreen]         = useState("main");
   const [payments, setPayments]     = useState(initPayments);
@@ -116,6 +136,8 @@ export default function App() {
   const [notice, setNotice]         = useState(null);
   const [showNotice, setShowNotice] = useState(false);
   const [noticeInput, setNoticeInput] = useState({ title:"", body:"" });
+  // 문자알림
+  const [smsMessages, setSmsMessages] = useState([]);
 
   useEffect(() => {
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -138,6 +160,7 @@ export default function App() {
 
   const goToMain = () => { window.history.back(); };
 
+  // 메인 데이터 구독
   useEffect(() => {
     const ref = doc(db, "fc-ballocha", "data");
     const unsub = onSnapshot(ref, (snap) => {
@@ -166,6 +189,22 @@ export default function App() {
         }
       }
       setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  // 문자알림 컬렉션 실시간 구독
+  useEffect(() => {
+    const colRef = collection(db, "fc-ballocha", "sms_messages", "items");
+    const unsub = onSnapshot(colRef, (snap) => {
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // 최신순 정렬 (receivedAt 기준)
+      msgs.sort((a, b) => {
+        const ta = a.receivedAt?.toDate ? a.receivedAt.toDate() : new Date(a.receivedAt || 0);
+        const tb = b.receivedAt?.toDate ? b.receivedAt.toDate() : new Date(b.receivedAt || 0);
+        return tb - ta;
+      });
+      setSmsMessages(msgs);
     });
     return () => unsub();
   }, []);
@@ -245,6 +284,12 @@ export default function App() {
     setPhotoIdx(0);
   };
 
+  const deleteSmsMessage = async (id) => {
+    try {
+      await deleteDoc(doc(db, "fc-ballocha", "sms_messages", "items", id));
+    } catch (e) { console.error(e); }
+  };
+
   const addAutoIncome = () => {
     const cur = new Date().getMonth();
     const autoMembers = ALL_MEMBERS.filter(m => (memberTypes[m.id] || m.payType) === "auto");
@@ -263,7 +308,6 @@ export default function App() {
     const n = { title: noticeInput.title, body: noticeInput.body, id: notice?.id || Date.now(), active: true };
     setNotice(n); save({ notice: n });
     setEditingNotice(false);
-    // 공지 수정하면 오늘 숨기기 초기화 (다시 팝업 뜨게)
     localStorage.removeItem("notice_hidden");
     setShowNotice(true);
   };
@@ -323,11 +367,18 @@ export default function App() {
                 {isAdmin && <div style={{ fontSize:11, color:"#4ade80", background:"rgba(74,222,128,0.1)", borderRadius:10, padding:"3px 10px" }}>🔑 관리자</div>}
               </div>
             </div>
+            {/* 탭 버튼 (5개) */}
             <div style={{ display:"flex", gap:4, background:"#141820", borderRadius:16, padding:5 }}>
-              {[{key:"dues",icon:"💰",label:"회비"},{key:"schedule",icon:"📅",label:"일정"},{key:"members",icon:"👥",label:"멤버"},{key:"gallery",icon:"📸",label:"사진첩"}].map(t => (
+              {[
+                {key:"dues",    icon:"💰", label:"회비"},
+                {key:"schedule",icon:"📅", label:"일정"},
+                {key:"sms",     icon:"📩", label:"문자알림"},
+                {key:"members", icon:"👥", label:"멤버"},
+                {key:"gallery", icon:"📸", label:"사진첩"},
+              ].map(t => (
                 <button key={t.key} onClick={() => setTab(t.key)} style={{ flex:1, background:tab===t.key?"#facc15":"none", border:"none", borderRadius:12, padding:"10px 0", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-                  <span style={{ fontSize:20 }}>{t.icon}</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:tab===t.key?"#0b0e14":"#4b5563" }}>{t.label}</span>
+                  <span style={{ fontSize:18 }}>{t.icon}</span>
+                  <span style={{ fontSize:11, fontWeight:700, color:tab===t.key?"#0b0e14":"#4b5563" }}>{t.label}</span>
                 </button>
               ))}
             </div>
@@ -491,6 +542,60 @@ export default function App() {
                       <button onClick={addSchedule} style={{ width:"100%", background:"#facc15", border:"none", borderRadius:14, padding:"16px", color:"#0b0e14", fontSize:16, fontWeight:700, cursor:"pointer" }}>추가하기</button>
                     </div>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ── 문자알림 탭 ── */}
+            {tab==="sms" && (
+              <div className={slideDir <= 0 ? "fade-right" : "fade-left"}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                  <div style={{ fontSize:16, fontWeight:700 }}>문자 알림</div>
+                  <div style={{ fontSize:12, color:"#4b5563", background:"#141820", border:"1px solid #1e2535", borderRadius:20, padding:"5px 12px" }}>
+                    총 {smsMessages.length}건
+                  </div>
+                </div>
+
+                {smsMessages.length === 0 ? (
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 0", gap:14 }}>
+                    <div style={{ fontSize:48 }}>📩</div>
+                    <div style={{ fontSize:15, color:"#4b5563" }}>수신된 문자가 없어요</div>
+                    <div style={{ fontSize:13, color:"#374151", textAlign:"center", lineHeight:1.6 }}>
+                      회비 입금 문자가 수신되면<br/>여기에 자동으로 표시돼요
+                    </div>
+                  </div>
+                ) : (
+                  smsMessages.map(msg => (
+                    <div key={msg.id} style={{ background:"#141820", border:"1px solid #1e2535", borderRadius:16, padding:"16px", marginBottom:10, position:"relative" }}>
+                      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10 }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          {/* 발신자 번호 */}
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                            <div style={{ width:32, height:32, borderRadius:"50%", background:"rgba(250,204,21,0.1)", border:"1px solid rgba(250,204,21,0.2)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>📱</div>
+                            <div>
+                              <div style={{ fontSize:13, fontWeight:700, color:"#facc15" }}>
+                                {msg.from || msg.sender || "알 수 없음"}
+                              </div>
+                              <div style={{ fontSize:11, color:"#4b5563", marginTop:1 }}>
+                                {formatSmsTime(msg.receivedAt || msg.timestamp || msg.createdAt)}
+                              </div>
+                            </div>
+                          </div>
+                          {/* 문자 내용 */}
+                          <div style={{ fontSize:14, color:"#d1d5db", lineHeight:1.7, whiteSpace:"pre-wrap", wordBreak:"break-all", background:"#0b0e14", borderRadius:10, padding:"12px 14px", border:"1px solid #1e2535" }}>
+                            {msg.body || msg.content || msg.message || "(내용 없음)"}
+                          </div>
+                        </div>
+                        {/* 관리자 삭제 버튼 */}
+                        {isAdmin && (
+                          <button
+                            onClick={() => deleteSmsMessage(msg.id)}
+                            style={{ background:"none", border:"none", color:"#374151", cursor:"pointer", fontSize:20, padding:"0 0 0 4px", flexShrink:0, lineHeight:1 }}
+                          >×</button>
+                        )}
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             )}
